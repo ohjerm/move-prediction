@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>beginner_tutorials</name>
+  <name>move_prediction</name>
   <version>0.0.0</version>
-  <description>The beginner_tutorials package</description>
+  <description>Predicting user intent to assist movement</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag -->
   <!-- Example:  -->
