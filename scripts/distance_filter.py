@@ -10,22 +10,46 @@ from itertools import izip, count
 from multiprocessing import Pool, cpu_count
 import time
 import os
+import timeit
 
 pub = rospy.Publisher('camera/depth/color/filtered_points', PointCloud2, queue_size=1)
-rospy.init_node('distance_filter', anonymous=False)
+pool = None
+
+def is_close(point):
+    if not abs(point[0]) > 1 and not abs(point[1]) > 1 and not abs(point[2]) > 1:
+        return point
+    else:
+        return [0,0,0,0]  # this is terrible
 
 def callback(data):
     global init_timer
     global loop_timer
     global ends_timer
 
-    #built-in function to read points from a cloud
+    # built-in function to read points from a cloud
     generator = pc2.read_points(data, skip_nans=True)
 
-    #generate a list of points if each axis is less than 1 meter from the camera
-    new_array = [point for point in generator if abs(point[0]) < 1 and abs(point[1]) < 1 and abs(point[2]) < 1]
+    
+    # generate a list of points if each axis is less than 1 meter from the camera
+    t = time.time()
+    new_array = [point for point in generator if not abs(point[0]) > 1 and not abs(point[1]) > 1 and not abs(point[2]) > 1]
+    rospy.loginfo(time.time() - t)
+    
+    
+    """
+    # multiprocessing test
+    t = time.time()
+    new_array = [point for point in list(pool.imap_unordered(is_close, generator, chunksize=100000)) if point is not None]
+    rospy.loginfo(time.time() - t)
+    """
+    
+    """
+    t = time.time()
+    new_array = list(pool.imap_unordered(is_close, generator, chunksize=768))
+    rospy.loginfo(time.time() - t)
+    """
 
-    #generate a new cloud with the old header and fields but with the new array
+    # generate a new cloud with the old header and fields but with the new array
     new_cloud = pc2.create_cloud(data.header, data.fields, new_array)
 
     pub.publish(new_cloud)
@@ -48,4 +72,6 @@ def listener():
     rospy.spin()
 
 if __name__ == '__main__':
+    rospy.init_node('distance_filter', anonymous=False)
+    pool = Pool(cpu_count())
     listener()

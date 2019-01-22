@@ -49,8 +49,8 @@ void chatterCallback(const sensor_msgs::PointCloud2::ConstPtr &pc)
   seg.setOptimizeCoefficients(true);
   seg.setModelType(pcl::SACMODEL_PLANE);
   seg.setMethodType(pcl::SAC_RANSAC);
-  seg.setMaxIterations(1000);
-  seg.setDistanceThreshold(0.2);
+  seg.setMaxIterations(10000);
+  seg.setDistanceThreshold(0.02);
 
   int i=0, num_points = (int) cloud_filtered->points.size();
   while(cloud_filtered->points.size() > 0.3 * num_points) 
@@ -81,7 +81,7 @@ void chatterCallback(const sensor_msgs::PointCloud2::ConstPtr &pc)
   std::vector<pcl::PointIndices> cluster_indices;
   pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
   ec.setClusterTolerance (0.2); // 2cm
-  ec.setMinClusterSize (100);
+  ec.setMinClusterSize (250);
   ec.setMaxClusterSize (25000);
   ec.setSearchMethod (tree);
   ec.setInputCloud (cloud_filtered);
