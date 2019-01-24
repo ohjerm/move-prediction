@@ -2,38 +2,37 @@
 
 import socket
 import time
+import sys
+import copy
 import rospy
-import actionlib
-from control_msgs.msg import *
-from trajectory_msgs.msg import *
-from geometry_msgs.msg import Vector3
-from sensor_msgs.msg import JointState
+import moveit_commander
+import moveit_msgs.msg
+import geometry_msgs.msg
 
-HOST = "169.254.178.76"     # remote host
-PORT = 30002                # port used by server
-
-client = None
-
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-# s.connect((HOST, PORT))
+robot = None
+scene = None
+group = None
 
 JOINT_NAMES = ['shoulder_pan_joint', 'shoulder_lift_joint', 'elbow_joint',
 'wrist_1_joint', 'wrist_2_joint', 'wrist_3_joint']
 
 
 def send_starting_pos():
-    g = FollowJointTrajectoryGoal()
-    g.trajectory = JointTrajectory()
-    g.trajectory.joint_names = JOINT_NAMES
-    try:
-        joint_states = rospy.wait_for_message("joint_states", JointState)
-        joints_pos = joint_states.position
+    global client
+    g = MoveBaseAction()
+    g.target_pose.header.frame_id = "base_link"
+    g.target_pose.header.stamp = rospy.Time.now()
     
-        g.trajectory.points = [
-                JointTrajectoryPoint(positions=joints_pos, velocities=[0]*6, time_from_start=rospy.Duration(0.0)),
-                JointTrajectoryPoint(positions=[0.25,0.197,0.149,0,0,0], velocities=[0]*6, time_from_start=rospy.Duration(2.0))]
+    q = Quaternion(quaternion_from_euler(0,0,0, axes="sxyz"))
+    g.target_pose.pose = Pose(0.314,0.120,0.144, q)
+        
+    rospy.loginfo("greetings")
+    
+    try:
         client.send_goal(g)
         client.wait_for_server()
+        
+        rospy.loginfo("ready for input")
     except KeyboardInterrupt:
         client.cancel_goal()
         raise
@@ -43,10 +42,16 @@ def callback(data):
     
 
 def main():
-    global client
+    global robot
+    global scene
+    global group
     try:
+        moveit_commander.roscpp_initialize(sys.argv)
         rospy.init_node('robot_movement', anonymous=False, disable_signals=True)
-        client = actionlib.SimpleActionClient('follow_joint_trajectory', FollowJointTrajectoryAction)
+        
+        robot = moveit_commander.RobotCommander()
+        scene = moveit_commander.PlanningSceneInterface()
+        group = moveit_commander.MoveGroupCommander("left_arm")
         
         send_starting_pos()
         

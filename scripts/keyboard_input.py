@@ -5,15 +5,23 @@ import rospy
 import getch
 from geometry_msgs.msg import Vector3
 
-def publisher():
-    pub = rospy.Publisher('keyboard/input', Vector3, queue_size=10)
-    rospy.init_node('keyboard_input', anonymous=False)
+INTERP_FACTOR = 1. / 30.  # publish at 60, so going from 1 to 0 takes .5 sec
+
+interp_vec = Vector3()
+
+
+def clamp(val, _min, _max):
+    return max(min(val, _max), _min)
+
+
+def publisher(interpolate):
+    global interp_vec
+    global INTERP_FACTOR
+    
+    pub = rospy.Publisher('keyboard/input', Vector3, queue_size=1)
     rate = rospy.Rate(60)
     
     out = Vector3()
-    out.x = 0
-    out.y = 0
-    out.z = 0
     
     while not rospy.is_shutdown():
         if keyboard.is_pressed('esc'):
@@ -39,13 +47,22 @@ def publisher():
             out.z = -1
         else:
             out.z = 0
+            
+        if interpolate:
+            out.x = clamp(out.x, interp_vec.x - INTERP_FACTOR, interp_vec.x + INTERP_FACTOR)
+            out.y = clamp(out.y, interp_vec.y - INTERP_FACTOR, interp_vec.y + INTERP_FACTOR)
+            out.z = clamp(out.z, interp_vec.z - INTERP_FACTOR, interp_vec.z + INTERP_FACTOR)
+            interp_vec.x = out.x
+            interp_vec.y = out.y
+            interp_vec.z = out.z
         
         pub.publish(out)
         rate.sleep()
             
 if __name__ == '__main__':
     try:
-        publisher()
+        rospy.init_node('keyboard_input', anonymous=False)
+        publisher(True)
     except rospy.ROSInterruptException:
         pass
     
