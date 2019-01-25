@@ -70,7 +70,7 @@ We are currently at version 0.0 and will continue to be here until the project i
 * **Frederik Falk** - [sebfrede](https://github.com/sebfrede)
 * **Oliver Hjermitslev** - [ChaiKnight](https://github.com/ChaiKnight)
 
-See also github.com/ChaiKnight/move-prediciton/contributors for a list of contributors to the project.
+See also [contributors](github.com/ChaiKnight/move-prediction/contributors) for a list of contributors to the project.
 
 ## License
 
