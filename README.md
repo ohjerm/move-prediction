@@ -37,3 +37,46 @@ rosrun rviz rviz
 
 Now locate the filtered points in the rostopic /camera/depth/color/filtered_points, show, and if you only see points in a 1m sphere around point 0,0,0, it is working.
 
+## Deployment
+
+To deploy this to a live system, ensure all the following nodes are running:
+https://
+### Camera Nodes
+
+`realsense2_camera->rs_aligned_depth.launch filters:=pointcloud` + `kd_distance_filter` + `clustering`
+
+### Keyboard Input Nodes
+
+`sudo -s`
+
+`keyboard_input.py` + `trajectories.py`
+
+... Additional nodes go here when development has caught up
+
+## Built With
+
+ROS, PCL, UR-industrial, MoveIt!
+
+## Contributing
+
+The repo is currently private as it is a student project.
+
+## Versioning
+
+We are currently at version 0.0 and will continue to be here until the project is completed. A versioning scheme will be decided then.
+
+## Authors
+
+* **Frederik Falk** - [sebfrede](https://github.com/sebfrede)
+* **Oliver Hjermitslev** - [ChaiKnight](https://github.com/ChaiKnight)
+
+See also github.com/ChaiKnight/move-prediciton/contributors for a list of contributors to the project.
+
+## License
+
+This project is licensed under GNU General Public License (GPL) v3.0 to ensure all improvements are kept in the public domain. This also means the authors assume no warranty or liability except where explicitly stated by law for the use of this software. The GPL is found in LICENSE.txt. Handle with care, especially around robotic arms :)
+
+## Acknowledgements
+
+If you contributed to this project in any way, be it code revision, feature development, grammar corrections, or general suggestions, then shout out to you.
+We would also like to thank our supervisors, Thomas Moeslund and Stefan Bengtson, of Aalborg University for all their help. Stefan's technical and concrete assistance with both the report and implementation have been invaluable. Thomas' help with structuring work, grander considerations and project scope have helped guide the project significantly.
