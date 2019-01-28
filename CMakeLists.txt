@@ -52,13 +52,12 @@ find_package(catkin REQUIRED COMPONENTS
 ## Generate messages in the 'msg' folder
 add_message_files(
   FILES
-  Num.msg
+  PointArr.msg
 )
 
 ## Generate services in the 'srv' folder
 add_service_files(
   FILES
-  AddTwoInts.srv
 )
 
 ## Generate actions in the 'action' folder
@@ -72,6 +71,7 @@ add_service_files(
 generate_messages(
   DEPENDENCIES
   std_msgs
+  geometry_msgs
 )
 
 ################################################
@@ -213,25 +213,6 @@ add_executable(distance_filter src/distance_filter.cpp)
 target_link_libraries(distance_filter ${catkin_LIBRARIES})
 add_dependencies(distance_filter beginner_tutorials_generate_messages_cpp)
 
-add_executable(talker src/talker.cpp)
-target_link_libraries(talker ${catkin_LIBRARIES})
-add_dependencies(talker beginner_tutorials_generate_messages_cpp)
-
 add_executable(clustering src/clustering.cpp)
 target_link_libraries(clustering ${catkin_LIBRARIES})
 add_dependencies(clustering beginner_tutorials_generate_messages_cpp)
-
-add_executable(add_two_ints_server src/add_two_ints_server.cpp)
-target_link_libraries(add_two_ints_server ${catkin_LIBRARIES})
-add_dependencies(add_two_ints_server beginner_tutorials_gencpp)
-
-add_executable(add_two_ints_client src/add_two_ints_client.cpp)
-target_link_libraries(add_two_ints_client ${catkin_LIBRARIES})
-add_dependencies(add_two_ints_client beginner_tutorials_gencpp)
-
-add_definitions(${PCL_DEFINITIONS})
-add_executable(cluster_extraction src/cluster_extraction.cpp)
-target_link_libraries(cluster_extraction ${catkin_LIBRARIES} ${roslib_LIBRARIES} ${PCL_LIBRARIES})
-add_dependencies(cluster_extraction beginner_tutorials_gencpp)
-
-file(COPY ${PROJECT_SOURCE_DIR}/src/tutdata.pcd DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/cluster_extraction.dir/src)

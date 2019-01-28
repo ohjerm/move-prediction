@@ -3,6 +3,7 @@
 #include "sensor_msgs/Image.h"
 #include "sensor_msgs/image_encodings.h"
 #include "sensor_msgs/PointCloud2.h"
+#include "move_prediction/PointArr.h"
 #include <pcl/ModelCoefficients.h>
 #include <pcl/point_types.h>
 #include <pcl/io/pcd_io.h>
@@ -147,7 +148,7 @@ int main(int argc, char **argv)
    */
   ros::Subscriber sub = n.subscribe("/camera/depth/color/filtered_points", 1, chatterCallback);
                   pub = n.advertise<sensor_msgs::PointCloud2>("camera/depth/color/clusters", 1);
-                  //pub_points=n.advertise<
+                  pub_points=n.advertise<move_prediction::PointArr>("camera/depth/color/cluster_positions", 1);
   //ros::Rate loop_rate(10); //we will test without at first, just publishing something whenever we receive it on subscription
 
   /**
