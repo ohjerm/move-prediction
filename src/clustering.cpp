@@ -26,6 +26,7 @@
  */
 
 ros::Publisher pub;
+ros::Publisher pub_points;
 
 
 void chatterCallback(const sensor_msgs::PointCloud2::ConstPtr &pc)
@@ -146,6 +147,7 @@ int main(int argc, char **argv)
    */
   ros::Subscriber sub = n.subscribe("/camera/depth/color/filtered_points", 1, chatterCallback);
                   pub = n.advertise<sensor_msgs::PointCloud2>("camera/depth/color/clusters", 1);
+                  //pub_points=n.advertise<
   //ros::Rate loop_rate(10); //we will test without at first, just publishing something whenever we receive it on subscription
 
   /**

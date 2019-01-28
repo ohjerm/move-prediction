@@ -42,7 +42,7 @@ def init():
     global prev_state
     # Setup moveit stuff
     moveit_commander.roscpp_initialize(sys.argv)
-    rospy.init_node('keyboard-control_node')
+    rospy.init_node('robot_control_node')
     robot = moveit_commander.RobotCommander()
     scene = moveit_commander.PlanningSceneInterface()
     group_name = 'manipulator'
@@ -63,7 +63,7 @@ def init():
     
     # Setup services and publishers
     ik_srv = rospy.ServiceProxy('/compute_ik', GetPositionIK)
-    pub = rospy.Publisher('/arm_controller/command', JointTrajectory, queue_size=1)
+    pub = rospy.Publisher('/vel_based_pos_traj_controller/command', JointTrajectory, queue_size=1)
 
     # Prepare IK req
     req = GetPositionIKRequest()
@@ -130,3 +130,4 @@ def callback(data):
 if __name__ == '__main__':
     init()
     rospy.Subscriber('keyboard/input', Vector3, callback)
+    rospy.spin()
