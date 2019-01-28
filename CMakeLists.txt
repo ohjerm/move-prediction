@@ -201,18 +201,18 @@ include_directories(
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
 
-add_executable(kd_distance_filter src/kd_distance_filter.cpp)
+add_executable(kd_distance_filter src/camera/kd_distance_filter.cpp)
 target_link_libraries(kd_distance_filter ${catkin_LIBRARIES})
 add_dependencies(kd_distance_filter beginner_tutorials_generate_messages_cpp)
 
-add_executable(voxel_grid src/voxel_grid.cpp)
+add_executable(voxel_grid src/camera/voxel_grid.cpp)
 target_link_libraries(voxel_grid ${catkin_LIBRARIES})
 add_dependencies(voxel_grid beginner_tutorials_generate_messages_cpp)
 
-add_executable(distance_filter src/distance_filter.cpp)
+add_executable(distance_filter src/camera/distance_filter.cpp)
 target_link_libraries(distance_filter ${catkin_LIBRARIES})
 add_dependencies(distance_filter beginner_tutorials_generate_messages_cpp)
 
-add_executable(clustering src/clustering.cpp)
+add_executable(clustering src/camera/clustering.cpp)
 target_link_libraries(clustering ${catkin_LIBRARIES})
 add_dependencies(clustering beginner_tutorials_generate_messages_cpp)
