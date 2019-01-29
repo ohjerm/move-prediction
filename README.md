@@ -40,7 +40,7 @@ Now locate the filtered points in the rostopic /camera/depth/color/filtered_poin
 ## Deployment
 
 To deploy this to a live system, ensure all the following nodes are running:
-https://
+
 ### Camera Nodes
 
 `realsense2_camera->rs_aligned_depth.launch filters:=pointcloud` + `kd_distance_filter` + `clustering`
