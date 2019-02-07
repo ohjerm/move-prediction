@@ -12,11 +12,13 @@ import sys
 import moveit_commander
 import tf.transformations
 import time
+import copy
 from moveit_msgs.srv import GetPositionIK
 from moveit_msgs.srv import GetPositionIKRequest
-from geometry_msgs.msg import PoseStamped, Vector3
+from geometry_msgs.msg import PoseStamped, Vector3, Point
 from trajectory_msgs.msg import JointTrajectory
 from trajectory_msgs.msg import JointTrajectoryPoint
+from move_prediction.msg import PointArr
 
 
 # Global vars
@@ -29,6 +31,14 @@ robot = None
 scene = None
 group = None
 req = None
+start_pub = None
+
+start_position = Point()
+start_position.x = -0.282
+start_position.y = 0.165
+start_position.z = -0.273
+
+positions_list = [start_position] * 848
 
 
 
@@ -40,6 +50,7 @@ def init():
     global ik_srv
     global req
     global prev_state
+    global start_pub
     # Setup moveit stuff
     moveit_commander.roscpp_initialize(sys.argv)
     rospy.init_node('robot_control_node')
@@ -64,7 +75,8 @@ def init():
     # Setup services and publishers
     ik_srv = rospy.ServiceProxy('/compute_ik', GetPositionIK)
     pub = rospy.Publisher('/vel_based_pos_traj_controller/command', JointTrajectory, queue_size=1)
-
+    start_pub = rospy.Publisher("keyboard/robot_start_position", PointArr, queue_size=1)
+    
     # Prepare IK req
     req = GetPositionIKRequest()
     req.ik_request.timeout = rospy.Duration(0.01)
@@ -108,12 +120,35 @@ def publish_pose(pose, speed):
     
     # Update previous state of robot to current state
     prev_state = resp.solution.joint_state.position
+    publish_current_pose(pose)
+    
+
+def add_points(old, new):
+    p = Point()
+    p.x = old.x + new.x
+    p.y = old.y + new.y
+    p.z = old.z + new.z
+    return p
+    
+
+def publish_current_pose(pose):
+    global start_pub
+    positions_list.insert(0, add_points(positions_list[0], pose.pose.position))
+    to_pub = PointArr()
+    to_copy = [positions_list[71], positions_list[155], 
+                    positions_list[328], positions_list[650],  
+                    positions_list.pop()]
+    to_pub.Array = copy.deepcopy(to_copy)
+    start_pub.publish(to_pub)
     
     
     
     
 def callback(data):
     global prev_state
+    
+    if abs(data.x) < 0.05 and abs(data.y) < 0.05 and abs(data.z) < 0.05:
+        return
     
     execution_time = 0.15
     new_pose = PoseStamped()

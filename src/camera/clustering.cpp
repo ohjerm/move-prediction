@@ -52,7 +52,7 @@ void chatterCallback(const sensor_msgs::PointCloud2::ConstPtr &pc)
   seg.setModelType(pcl::SACMODEL_PLANE);
   seg.setMethodType(pcl::SAC_RANSAC);
   seg.setMaxIterations(10000);
-  seg.setDistanceThreshold(0.02);
+  seg.setDistanceThreshold(0.01);
 
   int i=0, num_points = (int) cloud_filtered->points.size();
   while(cloud_filtered->points.size() > 0.3 * num_points) 
@@ -82,14 +82,17 @@ void chatterCallback(const sensor_msgs::PointCloud2::ConstPtr &pc)
 
   std::vector<pcl::PointIndices> cluster_indices;
   pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
-  ec.setClusterTolerance (0.2); // 2cm
-  ec.setMinClusterSize (250);
+  ec.setClusterTolerance (0.02);
+  ec.setMinClusterSize (50);
   ec.setMaxClusterSize (25000);
   ec.setSearchMethod (tree);
   ec.setInputCloud (cloud_filtered);
   ec.extract (cluster_indices);
 
   pcl::PointCloud<pcl::PointXYZ>::Ptr clustered_cloud (new pcl::PointCloud<pcl::PointXYZ>);
+  std::vector<geometry_msgs::Point> points_vector;
+
+  int hi = 0;
 
   for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin (); it != cluster_indices.end (); ++it)
   {
@@ -100,6 +103,22 @@ void chatterCallback(const sensor_msgs::PointCloud2::ConstPtr &pc)
     //cloud_cluster->height = 1;
     //cloud_cluster->is_dense = true;
     *clustered_cloud += *cloud_cluster;
+
+    std::cout << hi;
+    ++hi;
+
+    geometry_msgs::Point p;
+    for(size_t i = 0; i < cloud_cluster->points.size(); ++i) 
+    {
+      p.x += cloud_cluster->points[i].x;
+      p.y += cloud_cluster->points[i].y;
+      p.z += cloud_cluster->points[i].z;
+    }
+    p.x /= cloud_cluster->points.size();
+    p.y /= cloud_cluster->points.size();
+    p.z /= cloud_cluster->points.size();
+
+    points_vector.push_back(p);
   }
   
   sensor_msgs::PointCloud2 pc2;
@@ -108,6 +127,14 @@ void chatterCallback(const sensor_msgs::PointCloud2::ConstPtr &pc)
   pc2.header.stamp = ros::Time::now();
 
   pub.publish(pc2);
+
+  move_prediction::PointArr pa;
+
+  for(size_t i = 0; i < points_vector.size(); ++i)
+  {
+    pa.Array.push_back(points_vector[i]);
+  }
+  pub_points.publish(pa);
 }
 
 int main(int argc, char **argv)
