@@ -15,6 +15,8 @@ These instructions will get you a copy of the project up and running on your loc
 
 [PCL](http://www.pointclouds.org/downloads/)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: The project uses PCL to perform many pointcloud operations.
 
+[BlueZ](https://github.com/padelt/bluez)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: The project uses BLueZ to connect to the GSR sensor via Bluetooth.
+
 Many nodes can work without individual packages but all are necessary for everything to work together
 
 ### Installation
@@ -36,6 +38,40 @@ rosrun rviz rviz
 ```
 
 Now locate the filtered points in the rostopic /camera/depth/color/filtered_points, show, and if you only see points in a 1m sphere around point 0,0,0, it is working.
+
+### Bluetooth
+
+Make sure bluetooth is correctly installed:
+```
+sudo apt-get install bluetooth bluez bluez-tools rfkill
+```
+
+Next perforam a hciconfig:
+```
+example@example:~$ hciconfig
+hci0:	Type: Primary  Bus: USB
+	BD Address: 9C:2A:70:2A:87:AA  ACL MTU: 1022:8  SCO MTU: 183:5
+	UP RUNNING PSCAN ISCAN 
+	RX bytes:3180 acl:0 sco:0 events:86 errors:0
+	TX bytes:5434 acl:0 sco:0 commands:65 errors:0
+```
+If issues arise here, a firmware update or upgrade check for bluetooth might be needed.
+
+Next perform a Hcitool scan:
+```
+example@example:~$ hcitool scan
+Scanning ...
+	10:4A:7D:44:9F:D9	DAHL-PC
+	B0:35:9F:A0:D5:4C	oliver-laptop
+	90:32:4B:9A:89:E2	FW-85BZ35F
+  00:06:66:66:8E:F1 Shimmer3
+```
+If the correct device does not show up, ensure that the device is on and the bluetooth is working
+
+Using the rfcomm bind command, we connect the device to the computer via bluetooth on comm0:
+```
+sudo rfcomm bind 0 00:06:66:66:8E:F1
+```
 
 ## Deployment
 
