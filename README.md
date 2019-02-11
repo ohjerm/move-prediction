@@ -15,7 +15,7 @@ These instructions will get you a copy of the project up and running on your loc
 
 [PCL](http://www.pointclouds.org/downloads/)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: The project uses PCL to perform many pointcloud operations.
 
-[BlueZ](https://github.com/padelt/bluez)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: The project uses BLueZ to connect to the GSR sensor via Bluetooth.
+[BlueZ](https://github.com/padelt/bluez)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: The project uses BLueZ to connect to the GSR sensor via Bluetooth.
 
 Many nodes can work without individual packages but all are necessary for everything to work together
 
