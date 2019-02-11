@@ -46,7 +46,7 @@ Make sure bluetooth is correctly installed:
 sudo apt-get install bluetooth bluez bluez-tools rfkill
 ```
 
-Next perforam a hciconfig:
+Next perform a hciconfig:
 ```
 example@example:~$ hciconfig
 hci0:	Type: Primary  Bus: USB
@@ -57,7 +57,7 @@ hci0:	Type: Primary  Bus: USB
 ```
 If issues arise here, a firmware update or upgrade check for bluetooth might be needed.
 
-Next perform a Hcitool scan:
+Next perform a hcitool scan:
 ```
 example@example:~$ hcitool scan
 Scanning ...
@@ -72,6 +72,7 @@ Using the rfcomm bind command, we connect the device to the computer via bluetoo
 ```
 sudo rfcomm bind 0 00:06:66:66:8E:F1
 ```
+The device should now be connected to /dev/rfcomm0
 
 ## Deployment
 
