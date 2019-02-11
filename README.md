@@ -43,10 +43,10 @@ Now locate the filtered points in the rostopic /camera/depth/color/filtered_poin
 
 Make sure bluetooth is correctly installed:
 ```
-sudo apt-get install bluetooth bluez bluez-tools rfkill
+sudo apt-get install bluetooth bluez bluez-tools
 ```
 
-Next perform a hciconfig:
+Next perform a hciconfig to ensure bluetooth is installed correctly:
 ```
 example@example:~$ hciconfig
 hci0:	Type: Primary  Bus: USB
@@ -57,22 +57,23 @@ hci0:	Type: Primary  Bus: USB
 ```
 If issues arise here, a firmware update or upgrade check for bluetooth might be needed.
 
-Next perform a hcitool scan:
+Next perform a hcitool scan to find nearby bluetooth devices:
 ```
 example@example:~$ hcitool scan
 Scanning ...
 	10:4A:7D:44:9F:D9	DAHL-PC
 	B0:35:9F:A0:D5:4C	oliver-laptop
 	90:32:4B:9A:89:E2	FW-85BZ35F
-  00:06:66:66:8E:F1 Shimmer3
+  	00:06:66:66:8E:F1 	Shimmer3
 ```
-If the correct device does not show up, ensure that the device is on and the bluetooth is working
+If the correct device does not show up, ensure that the device is on and the bluetooth is working.
+For the Shimmer3 GSR+ sensor, using the supplied consensys might be needed to ensure proper functionability of the device.
 
 Using the rfcomm bind command, we connect the device to the computer via bluetooth on comm0:
 ```
 sudo rfcomm bind 0 00:06:66:66:8E:F1
 ```
-The device should now be connected to /dev/rfcomm0
+The device should now be connected to /dev/rfcomm0 and be able to send data
 
 ## Deployment
 
