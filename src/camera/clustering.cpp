@@ -55,7 +55,7 @@ void chatterCallback(const sensor_msgs::PointCloud2::ConstPtr &pc)
   seg.setDistanceThreshold(0.01);
 
   int i=0, num_points = (int) cloud_filtered->points.size();
-  while(cloud_filtered->points.size() > 0.3 * num_points) 
+  while(cloud_filtered->points.size() > 0.6 * num_points) 
   {
     seg.setInputCloud(cloud_filtered);
     seg.segment(*inliers, *coefficients);
@@ -83,8 +83,8 @@ void chatterCallback(const sensor_msgs::PointCloud2::ConstPtr &pc)
   std::vector<pcl::PointIndices> cluster_indices;
   pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
   ec.setClusterTolerance (0.02);
-  ec.setMinClusterSize (50);
-  ec.setMaxClusterSize (25000);
+  ec.setMinClusterSize (60);
+  ec.setMaxClusterSize (50000);
   ec.setSearchMethod (tree);
   ec.setInputCloud (cloud_filtered);
   ec.extract (cluster_indices);
@@ -135,6 +135,8 @@ void chatterCallback(const sensor_msgs::PointCloud2::ConstPtr &pc)
     pa.Array.push_back(points_vector[i]);
   }
   pub_points.publish(pa);
+
+  ROS_INFO("%i", (int)pa.Array.size());
 }
 
 int main(int argc, char **argv)

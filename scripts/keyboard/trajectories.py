@@ -14,13 +14,14 @@ from move_prediction.msg import VectorArr
  # this sets the end effector position to (-0.282, 0.165, -0.273)
 
 current_position = Vector3()
-current_position.x = -0.282
-current_position.y = 0.165
-current_position.z = -0.273
 
-list_10_sec = [current_position] * 848
 pub = None
 start_pos = Vector3()
+start_pos.x = -0.282
+start_pos.y = 0.165
+start_pos.z = -0.273
+
+list_10_sec = [start_pos] * 1039
 
 
 def add_vectors(vec1, vec2):
@@ -54,14 +55,14 @@ def callback(data):
     remap.y = data.z / 100.
     
     # the current position is last frame + old position
-    current_position = add_vectors(current_position, remap)
+    current_position = add_vectors(current_position, data)
     rospy.loginfo(current_position)
     
     # five vectors are created based on an internal timing test
-    vec_1_sec = get_vector(current_position, list_10_sec[71])
-    vec_2_sec = get_vector(current_position, list_10_sec[155])
-    vec_5_sec = get_vector(current_position, list_10_sec[328])
-    vec_10_sec = get_vector(current_position, list_10_sec[650])
+    vec_1_sec = get_vector(current_position, list_10_sec[109])
+    vec_2_sec = get_vector(current_position, list_10_sec[194])
+    vec_5_sec = get_vector(current_position, list_10_sec[269])
+    vec_10_sec = get_vector(current_position, list_10_sec[534])
     vec_14_sec = get_vector(current_position, list_10_sec.pop())
 
     #create a clone of the current position (as it is global) to add to list

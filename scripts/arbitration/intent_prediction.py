@@ -39,7 +39,7 @@ def cb_goal_positions(data):
         add_to_list = True  # to determine whether to add this goal as new
         for existing_goal in goal_list:  
             # check every point against existing goals
-            if get_distance(goal, existing_goal[0]) < 0.02:  # it exists
+            if get_distance(goal, existing_goal[0]) < 0.05:  # it exists
                 existing_goal[1] = 0
                 add_to_list = False
                 break
@@ -49,7 +49,7 @@ def cb_goal_positions(data):
             
     # check "age" of all existing goals
     for existing_goal in goal_list:
-        if existing_goal[1] > 5:  # remove if 5 frames (~1 sec) old
+        if existing_goal[1] >= 5:  # remove if 5 frames (~1 sec) old
             goal_list.remove(existing_goal)
         else:
             existing_goal[1] += 1  # it has existed for one more frame
@@ -148,8 +148,10 @@ def cb_trajectories(data):
     we modify the confidence based on a weight for each trajectory
     these are calculated as traj_time[0]/traj_time[i] normalized over the sum
     1, 0.46, 0.22, 0.11, 0.08 = 0.53, 0.25, 0.12, 0.06, 0.04
+    ^OLD VALUES, NEW ARE:
+    1, 0.56, 0.41, 0.2, 0.11 = 0.44, 0.25, 0.18, 0.09, 0.05
     """
-    weights = np.array([0.53, 0.25, 0.12, 0.06, 0.04])
+    weights = np.array([0.44, 0.25, 0.18, 0.09, 0.05])
     total = 0.
     for i, confidence in enumerate(best_guess[:,1]):
         weighted_confidence = weights[i] * confidence

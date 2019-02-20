@@ -38,7 +38,7 @@ start_position.x = -0.282
 start_position.y = 0.165
 start_position.z = -0.273
 
-positions_list = [start_position] * 848
+positions_list = [start_position] * 1039
 
 
 
@@ -135,8 +135,8 @@ def publish_current_pose(pose):
     global start_pub
     positions_list.insert(0, add_points(positions_list[0], pose.pose.position))
     to_pub = PointArr()
-    to_copy = [positions_list[71], positions_list[155], 
-                    positions_list[328], positions_list[650],  
+    to_copy = [positions_list[109], positions_list[194], 
+                    positions_list[269], positions_list[534],  
                     positions_list.pop()]
     to_pub.Array = copy.deepcopy(to_copy)
     start_pub.publish(to_pub)

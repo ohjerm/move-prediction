@@ -5,7 +5,7 @@ import rospy
 import getch
 from geometry_msgs.msg import Vector3
 
-INTERP_FACTOR = 1. / 30.  # publish at 60, so going from 1 to 0 takes .5 sec
+INTERP_FACTOR = 1. / 15.  # publish at 60, so going from 1 to 0 takes .5 sec
 
 interp_vec = Vector3()
 
@@ -19,7 +19,7 @@ def publisher(interpolate):
     global INTERP_FACTOR
     
     pub = rospy.Publisher('keyboard/input', Vector3, queue_size=1)
-    rate = rospy.Rate(60)
+    rate = rospy.Rate(30)
     
     out = Vector3()
     
@@ -27,6 +27,7 @@ def publisher(interpolate):
         if keyboard.is_pressed('esc'):
             rospy.signal_shutdown("Hooked keyboard is no longer needed")
         
+        """ old code that allows multiple directions
         if keyboard.is_pressed(72):
             out.x = 1
         elif keyboard.is_pressed(76):
@@ -47,6 +48,24 @@ def publisher(interpolate):
             out.z = -1
         else:
             out.z = 0
+        """
+        
+        out.x = 0.
+        out.y = 0.
+        out.z = 0.
+        
+        if keyboard.is_pressed(72):
+            out.x = 1
+        elif keyboard.is_pressed(76):
+            out.x = -1
+        elif keyboard.is_pressed(75):
+            out.y = 1
+        elif keyboard.is_pressed(77):
+            out.y = -1
+        elif keyboard.is_pressed(73):
+            out.z = 1
+        elif keyboard.is_pressed(71):
+            out.z = -1
             
         if interpolate:
             out.x = clamp(out.x, interp_vec.x - INTERP_FACTOR, interp_vec.x + INTERP_FACTOR)

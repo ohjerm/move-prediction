@@ -8,6 +8,8 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <cstdio>
+#include <ctime>
 #include <pcl/ModelCoefficients.h>
 #include <pcl/point_types.h>
 #include <pcl/io/pcd_io.h>
@@ -26,9 +28,14 @@
 #include <pcl_ros/transforms.h>
 
 ros::Publisher pub;
+std::vector<double> time_list;
 
 void chatterCallback(const sensor_msgs::PointCloud2ConstPtr& input_cloud) 
 {
+  std::clock_t start;
+  double duration;
+  start = std::clock();
+
   //create containers and do conversions
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB>), 
                                          cloud_filtered(new pcl::PointCloud<pcl::PointXYZRGB>);
@@ -66,7 +73,19 @@ void chatterCallback(const sensor_msgs::PointCloud2ConstPtr& input_cloud)
   pcl::toROSMsg(*cloud_filtered, output_cloud);
   output_cloud.header.frame_id="camera_depth_optical_frame";
   output_cloud.header.stamp=ros::Time::now();
+
+  duration = (std::clock() - start) / (double) CLOCKS_PER_SEC;
+  time_list.push_back(duration);
+  const auto [min, max] = std::minmax_element(begin(time_list), end(time_list));
+  double d = 0.0;
+
+  for(size_t i = 0; i < time_list.size(); i++) {
+    d += time_list[i];
+  }
+
+  d /= time_list.size();
   
+  //ROS_INFO("Min: %.3f | Max: %.3f | Avg: %.3f", *min, *max, d);
   pub.publish(output_cloud);
 }
 
