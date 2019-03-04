@@ -18,6 +18,7 @@ def animate(i,xs,ys):
    xs.append(dt.datetime.now().strftime('%H:%M:%S.%f'))
    ys.append(GSR_ohm)
           
+
    ax.clear()
    ax.plot(xs,ys)
           
