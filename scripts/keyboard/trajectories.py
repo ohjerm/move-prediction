@@ -9,17 +9,10 @@ import rospy
 from geometry_msgs.msg import Vector3, Point
 from move_prediction.msg import VectorArr
 
- # this script assumes the following command has been run:
- # rostopic pub /vel_based_pos_traj_controller/command trajectory_msgs/JointTrajectory '{joint_names: ["shoulder_pan_joint", "shoulder_lift_joint", "elbow_joint", "wrist_1_joint", "wrist_2_joint", "wrist_3_joint"], points: [{positions:[-3.14, -1.2, 2.1, -0.9, 1.4, -3.19], time_from_start: [10.0,0.0]}]}' -1
- # this sets the end effector position to (-0.282, 0.165, -0.273)
-
 current_position = Vector3()
 
 pub = None
-start_pos = Vector3()
-start_pos.x = -0.282
-start_pos.y = 0.165
-start_pos.z = -0.273
+start_pos = Point()
 
 list_10_sec = [start_pos] * 1039
 
@@ -49,13 +42,13 @@ def callback(data):
     global list_10_sec
     
     # remap the data to z = forw/back, x = right/left, and y is up/down
-    remap = Vector3()
-    remap.x = -data.y / 100.
-    remap.z = data.x / 100.
-    remap.y = data.z / 100.
+    remap = Point()
+    remap.x = -data.y / 500.
+    remap.z = data.x / 500.
+    remap.y = data.z / 500.
     
     # the current position is last frame + old position
-    current_position = add_vectors(current_position, data)
+    current_position = add_vectors(current_position, remap)
     rospy.loginfo(current_position)
     
     # five vectors are created based on an internal timing test

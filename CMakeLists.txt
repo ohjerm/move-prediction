@@ -54,6 +54,7 @@ add_message_files(
   FILES
   PointArr.msg
   VectorArr.msg
+  Goal.msg
 )
 
 ## Generate services in the 'srv' folder

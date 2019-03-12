@@ -5,7 +5,7 @@ import rospy
 import getch
 from geometry_msgs.msg import Vector3
 
-INTERP_FACTOR = 1. / 15.  # publish at 60, so going from 1 to 0 takes .5 sec
+INTERP_FACTOR = 1. / 30.  # publish at 60, so going from 1 to 0 takes .5 sec
 
 interp_vec = Vector3()
 
@@ -19,7 +19,7 @@ def publisher(interpolate):
     global INTERP_FACTOR
     
     pub = rospy.Publisher('keyboard/input', Vector3, queue_size=1)
-    rate = rospy.Rate(30)
+    rate = rospy.Rate(60)
     
     out = Vector3()
     

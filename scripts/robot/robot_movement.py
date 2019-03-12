@@ -13,12 +13,13 @@ import moveit_commander
 import tf.transformations
 import time
 import copy
+from math import sqrt
 from moveit_msgs.srv import GetPositionIK
 from moveit_msgs.srv import GetPositionIKRequest
 from geometry_msgs.msg import PoseStamped, Vector3, Point
 from trajectory_msgs.msg import JointTrajectory
 from trajectory_msgs.msg import JointTrajectoryPoint
-from move_prediction.msg import PointArr
+from move_prediction.msg import PointArr, Goal
 
 
 # Global vars
@@ -32,13 +33,12 @@ scene = None
 group = None
 req = None
 start_pub = None
+curr_pub = None
+predicted_goal = None
+confidence = 0.
+time_since_prediction = time.time()
 
-start_position = Point()
-start_position.x = -0.282
-start_position.y = 0.165
-start_position.z = -0.273
-
-positions_list = [start_position] * 1039
+positions_list = [Point()] * 1039
 
 
 
@@ -51,6 +51,8 @@ def init():
     global req
     global prev_state
     global start_pub
+    global positions_list
+    global curr_pub
     # Setup moveit stuff
     moveit_commander.roscpp_initialize(sys.argv)
     rospy.init_node('robot_control_node')
@@ -60,6 +62,14 @@ def init():
     group = moveit_commander.MoveGroupCommander(group_name)
     
     prev_state = robot.get_current_state().joint_state.position
+    
+    # real start position at start time
+    pos = group.get_current_pose().pose.position
+    fixed_pos = Point()
+    fixed_pos.z = -pos.x
+    fixed_pos.y = pos.z
+    fixed_pos.x = pos.y
+    positions_list = [fixed_pos] * 1039
     
     # Insert table in planning scene
     rospy.sleep(1)
@@ -76,10 +86,11 @@ def init():
     ik_srv = rospy.ServiceProxy('/compute_ik', GetPositionIK)
     pub = rospy.Publisher('/vel_based_pos_traj_controller/command', JointTrajectory, queue_size=1)
     start_pub = rospy.Publisher("keyboard/robot_start_position", PointArr, queue_size=1)
+    curr_pub = rospy.Publisher('/robot/current_position', Point, queue_size=1)
     
     # Prepare IK req
     req = GetPositionIKRequest()
-    req.ik_request.timeout = rospy.Duration(0.01)
+    req.ik_request.timeout = rospy.Duration(1. / 30. / 2.)
     req.ik_request.attempts = 2
     req.ik_request.avoid_collisions = True
     req.ik_request.group_name = group_name
@@ -120,7 +131,7 @@ def publish_pose(pose, speed):
     
     # Update previous state of robot to current state
     prev_state = resp.solution.joint_state.position
-    publish_current_pose(pose)
+    
     
 
 def add_points(old, new):
@@ -130,39 +141,122 @@ def add_points(old, new):
     p.z = old.z + new.z
     return p
     
+    
 
-def publish_current_pose(pose):
+def publish_current_pose():
     global start_pub
-    positions_list.insert(0, add_points(positions_list[0], pose.pose.position))
+    global curr_pub
+    pos = group.get_current_pose().pose.position
+    
+    fixed_pos = Point()
+    fixed_pos.z = -pos.x
+    fixed_pos.y = pos.z
+    fixed_pos.x = pos.y
+    
+    positions_list.insert(0, fixed_pos)
+    
     to_pub = PointArr()
     to_copy = [positions_list[109], positions_list[194], 
                     positions_list[269], positions_list[534],  
                     positions_list.pop()]
     to_pub.Array = copy.deepcopy(to_copy)
     start_pub.publish(to_pub)
+
+    curr_pub.publish(fixed_pos)
     
     
+def get_magnitude(vector):
+    return sqrt(vector.x ** 2 + vector.y ** 2 + vector.z ** 2)
+
+
+def get_normalized_vector(vector):
+    if get_magnitude(vector) == 0. or get_magnitude(vector) == 1.:
+        return vector
+    else:
+        to_ret = Vector3()
+        mag = get_magnitude(vector)
+        to_ret.x = vector.x / mag
+        to_ret.y = vector.y / mag
+        to_ret.z = vector.z / mag
+        return to_ret
+    
+    
+def get_vector(target, current):
+    to_ret = Vector3()
+    to_ret.x = target.x - current.x
+    to_ret.y = target.y - current.y
+    to_ret.z = target.z - current.z
+    return to_ret
+
+
+def convert_to_ur_coord(vector):
+    new_coords = Point()
+    
+    new_coords.x = vector.z
+    new_coords.y = -vector.x
+    new_coords.z = vector.y
+    
+    return new_coords
     
     
 def callback(data):
     global prev_state
+    global predicted_goal
+    global time_since_prediction
+    global confidence
     
-    if abs(data.x) < 0.05 and abs(data.y) < 0.05 and abs(data.z) < 0.05:
-        return
+    publish_current_pose()  # we always want to publish this and update it
     
-    execution_time = 0.15
+    # first check if it has been a second since the last update
+    if predicted_goal is not None and time.time() - time_since_prediction > 1.:
+        predicted_goal = None
+        confidence = 0.
+        
+    execution_time = 0.5
     new_pose = PoseStamped()
     new_pose.header.stamp = rospy.Time.now()
     new_pose.header.frame_id = 'ee_link'
     
-    new_pose.pose.position.x = data.x / 100.
-    new_pose.pose.position.y = data.y / 100.
-    new_pose.pose.position.z = data.z / 100.
-    new_pose.pose.orientation.w = 1.0
+    if abs(data.x) < 0.05 and abs(data.y) < 0.05 and abs(data.z) < 0.05:
+        return
     
-    publish_pose(new_pose, execution_time)
+    if predicted_goal is not None:
+        optimal_goal_direction = get_vector(convert_to_ur_coord(predicted_goal),
+                                            group.get_current_pose().pose.position)
+        optimal_goal_direction = get_normalized_vector(optimal_goal_direction)
+        keyboard_magnitude = get_magnitude(data)
+        optimal_goal_direction.x *= keyboard_magnitude
+        optimal_goal_direction.y *= keyboard_magnitude
+        optimal_goal_direction.z *= keyboard_magnitude
+        
+        new_pose.pose.position.x = data.x / 100. * (1 - confidence) + optimal_goal_direction.x / 100. * confidence
+        new_pose.pose.position.y = data.y / 100. * (1 - confidence) + optimal_goal_direction.y / 100. * confidence
+        new_pose.pose.position.z = data.z / 100. * (1 - confidence) + optimal_goal_direction.z / 100. * confidence
+        
+        rospy.loginfo(optimal_goal_direction)
+        new_pose.pose.orientation.w = 1.0
+        
+        publish_pose(new_pose, execution_time)
+    else:
+        new_pose.pose.position.x = data.x / 100.
+        new_pose.pose.position.y = data.y / 100.
+        new_pose.pose.position.z = data.z / 100.
+        new_pose.pose.orientation.w = 1.0
+        
+        publish_pose(new_pose, execution_time)
+    
+    
+def cb_goal(data):
+    global predicted_goal
+    global confidence
+    global time_since_prediction
+    predicted_goal = data.point
+    confidence = data.confidence
+    time_since_prediction = time.time()
+    
 
 if __name__ == '__main__':
     init()
     rospy.Subscriber('keyboard/input', Vector3, callback)
+    rospy.Subscriber('arbitration/final_goal', Goal, cb_goal)
     rospy.spin()

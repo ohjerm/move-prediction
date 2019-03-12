@@ -11,11 +11,13 @@ import rospy
 import copy
 import numpy as np
 from geometry_msgs.msg import Point, Vector3
-from move_prediction.msg import VectorArr, PointArr
+from move_prediction.msg import VectorArr, PointArr, Goal
 from math import sqrt
 
 goal_list = []
 robot_positions_list = []
+current_robot_position = Point()
+pub = None
 
 
 def cb_robot_positions(data):
@@ -41,6 +43,10 @@ def cb_goal_positions(data):
             # check every point against existing goals
             if get_distance(goal, existing_goal[0]) < 0.05:  # it exists
                 existing_goal[1] = 0
+                add_to_list = False
+                break
+            
+            if current_robot_position.y > 0. and goal.y > current_robot_position.y - 0.05:
                 add_to_list = False
                 break
         
@@ -100,6 +106,79 @@ def no_length(vector):
     return vector.x == 0 and vector.y == 0 and vector.z == 0
 
 
+#this is the updated version of the method, chosen based on internal test
+def cb_trajectories_updated(data):
+    global goal_list
+    global robot_positions_list
+    global pub
+    
+    #kind of slow (deepcopying) but likely necessary
+    copy_goal_list = copy.deepcopy(goal_list)  # ensure no race conditions
+    copy_posi_list = copy.deepcopy(robot_positions_list)
+    
+    trajectory_probabilities = np.zeros((len(data.Array), len(copy_goal_list)))
+    
+    for i, trajectory in enumerate(data.Array):
+        # check if we have everything we need
+        if len(copy_goal_list) == 0 or len(copy_posi_list) == 0:
+            return
+        #initialize array to store probabilities
+        probabilities = np.zeros(len(copy_goal_list))
+        #iterate through each goal
+        for j, (goal, frames) in enumerate(copy_goal_list):
+            optimal_path = calc_trajectory_normalized(copy_posi_list[i], goal)
+            taken_path = normalize(trajectory)
+            if no_length(optimal_path) or no_length(taken_path):
+                continue  # there is now 0 probabilities for this goal
+            probabilities[j] = max(0, calc_fit(optimal_path, taken_path))
+            
+        # now we have the fits for each of these, we sum them 
+        # and create our probability distribution
+        total = sum(probabilities)
+        if total == 0:
+            continue
+        probabilities /= total
+        
+        #this differs from the old version in that it just sends probs
+        trajectory_probabilities[i] = probabilities
+        
+    weights = np.array([0.44, 0.25, 0.18, 0.09, 0.05])
+    guesses = np.zeros(len(copy_goal_list))
+    for i in range(len(data.Array)):  # i is the current trajectory
+        for j in range(len(guesses)):  # j is the current goal
+            guesses[j] += trajectory_probabilities[i, j] * weights[i]
+            
+    total = sum(guesses)
+    
+    if total == 0:
+        return  # should send 0 confidence here
+    
+    guesses /= total
+    
+    goal = copy_goal_list[np.argmax(guesses)][0]
+    prob = max(guesses)
+    conf = 0.
+    if len(guesses) < 2:
+        conf = 1
+    else:
+        conf = prob - np.partition(guesses, -2)[-2]
+    
+    prediction = Goal()
+    prediction.point = goal
+    prediction.confidence = conf
+    
+    rospy.loginfo("i predict goal " + str(goal.x) + ". Confidence = " + str(conf))
+    
+    pub.publish(prediction)
+        
+        
+    
+
+"""
+OLD VERSION, DO NOT USE
+This version calculated a confidence based on a confidence from each trajectory
+The new version takes into account all probabilities calculated
+"""
 def cb_trajectories(data):
     global goal_list
     global robot_positions_list
@@ -159,6 +238,7 @@ def cb_trajectories(data):
         best_guess[i,1] = weighted_confidence
         
     if total == 0:
+        rospy.loginfo("no guess")
         return  # we should publish 0 confidence here
     best_guess[:,1] /= total
     
@@ -171,19 +251,23 @@ def cb_trajectories(data):
     confidence_of_goal = max(votes) - np.partition(votes, -2)[-2]
     goal_position_and_confidence = (final_goal, confidence_of_goal)
     
-    rospy.loginfo("I believe it to be the goal located at " + 
-                  str(final_goal.x) + ", " + str(final_goal.y)
-                  + ", " + str(final_goal.z) + 
-                  " with a confidence of " + str(confidence_of_goal))
+    
+def cb_current_pos_update(data):
+    global current_robot_position
+    current_robot_position = data
+
 
 
 def init():
+    global pub
     rospy.init_node('intent_prediction_node', anonymous=False)
+    pub = rospy.Publisher("arbitration/prediction", Goal, queue_size=1)
     rospy.Subscriber('keyboard/robot_start_position', 
                      PointArr, cb_robot_positions)
     rospy.Subscriber('camera/depth/color/cluster_positions', 
                      PointArr, cb_goal_positions)
-    rospy.Subscriber('keyboard/trajectories', VectorArr, cb_trajectories)
+    rospy.Subscriber('keyboard/trajectories', VectorArr, cb_trajectories_updated)
+    rospy.Subscriber('/robot/current_position', Point, cb_current_pos_update)
     rospy.spin()
 
 
