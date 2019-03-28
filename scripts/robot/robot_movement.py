@@ -20,6 +20,7 @@ from geometry_msgs.msg import PoseStamped, Vector3, Point
 from trajectory_msgs.msg import JointTrajectory
 from trajectory_msgs.msg import JointTrajectoryPoint
 from move_prediction.msg import PointArr, Goal
+from visualization_msgs.msg import Marker
 
 
 # Global vars
@@ -34,11 +35,12 @@ group = None
 req = None
 start_pub = None
 curr_pub = None
+marker_pub = None
 predicted_goal = None
 confidence = 0.
 time_since_prediction = time.time()
 
-positions_list = [Point()] * 1039
+positions_list = [Point()] * 520
 
 
 
@@ -53,6 +55,7 @@ def init():
     global start_pub
     global positions_list
     global curr_pub
+    global marker_pub
     # Setup moveit stuff
     moveit_commander.roscpp_initialize(sys.argv)
     rospy.init_node('robot_control_node')
@@ -69,7 +72,7 @@ def init():
     fixed_pos.z = -pos.x
     fixed_pos.y = pos.z
     fixed_pos.x = pos.y
-    positions_list = [fixed_pos] * 1039
+    positions_list = [fixed_pos] * 520
     
     # Insert table in planning scene
     rospy.sleep(1)
@@ -87,10 +90,11 @@ def init():
     pub = rospy.Publisher('/vel_based_pos_traj_controller/command', JointTrajectory, queue_size=1)
     start_pub = rospy.Publisher("keyboard/robot_start_position", PointArr, queue_size=1)
     curr_pub = rospy.Publisher('/robot/current_position', Point, queue_size=1)
+    marker_pub = rospy.Publisher('/robot/marker_pos', Marker, queue_size=1)
     
     # Prepare IK req
     req = GetPositionIKRequest()
-    req.ik_request.timeout = rospy.Duration(1. / 30. / 2.)
+    req.ik_request.timeout = rospy.Duration(1.)
     req.ik_request.attempts = 2
     req.ik_request.avoid_collisions = True
     req.ik_request.group_name = group_name
@@ -156,13 +160,32 @@ def publish_current_pose():
     positions_list.insert(0, fixed_pos)
     
     to_pub = PointArr()
-    to_copy = [positions_list[109], positions_list[194], 
-                    positions_list[269], positions_list[534],  
+    to_copy = [positions_list[55], positions_list[97], 
+                    positions_list[135], positions_list[267],  
                     positions_list.pop()]
     to_pub.Array = copy.deepcopy(to_copy)
     start_pub.publish(to_pub)
 
     curr_pub.publish(fixed_pos)
+
+    marker = Marker()
+    marker.header.stamp = rospy.Time.now()
+    marker.header.frame_id = 'camera_link'
+    marker.pose = group.get_current_pose().pose
+    # marker.pose.position = fixed_pos
+
+    scale = Vector3()
+    scale.x = 0.02
+    scale.y = 0.02
+    scale.z = 0.02
+
+    marker.color.a = 1
+    marker.color.r = 1
+
+    marker.scale = scale
+
+    marker_pub.publish(marker)
+
     
     
 def get_magnitude(vector):
@@ -216,11 +239,15 @@ def callback(data):
     new_pose = PoseStamped()
     new_pose.header.stamp = rospy.Time.now()
     new_pose.header.frame_id = 'ee_link'
+
+    
     
     if abs(data.x) < 0.05 and abs(data.y) < 0.05 and abs(data.z) < 0.05:
         return
     
     if predicted_goal is not None:
+        # rospy.loginfo(predicted_goal)
+        # rospy.loginfo(group.get_current_pose().pose.position)
         optimal_goal_direction = get_vector(convert_to_ur_coord(predicted_goal),
                                             group.get_current_pose().pose.position)
         optimal_goal_direction = get_normalized_vector(optimal_goal_direction)
@@ -228,12 +255,15 @@ def callback(data):
         optimal_goal_direction.x *= keyboard_magnitude
         optimal_goal_direction.y *= keyboard_magnitude
         optimal_goal_direction.z *= keyboard_magnitude
+
+        # rospy.loginfo("The goal is in x: " + str(predicted_goal.x))
+        # rospy.loginfo("Current pos is x: " + str(group.get_current_pose().pose.position.y))
+        # rospy.loginfo("Current fixed  x: " + str(convert_to_ur_coord(predicted_goal).x))
         
         new_pose.pose.position.x = data.x / 100. * (1 - confidence) + optimal_goal_direction.x / 100. * confidence
         new_pose.pose.position.y = data.y / 100. * (1 - confidence) + optimal_goal_direction.y / 100. * confidence
         new_pose.pose.position.z = data.z / 100. * (1 - confidence) + optimal_goal_direction.z / 100. * confidence
-        
-        rospy.loginfo(optimal_goal_direction)
+
         new_pose.pose.orientation.w = 1.0
         
         publish_pose(new_pose, execution_time)
@@ -253,6 +283,7 @@ def cb_goal(data):
     predicted_goal = data.point
     confidence = data.confidence
     time_since_prediction = time.time()
+    
     
 
 if __name__ == '__main__':

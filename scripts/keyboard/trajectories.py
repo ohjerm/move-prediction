@@ -14,8 +14,9 @@ current_position = Vector3()
 pub = None
 start_pos = Point()
 
-list_10_sec = [start_pos] * 1039
-
+# list_10_sec = [start_pos] * 1039
+list_10_sec = [start_pos] * 520
+ 
 
 def add_vectors(vec1, vec2):
     ret = Vector3()
@@ -43,19 +44,18 @@ def callback(data):
     
     # remap the data to z = forw/back, x = right/left, and y is up/down
     remap = Point()
-    remap.x = -data.y / 500.
-    remap.z = data.x / 500.
-    remap.y = data.z / 500.
+    remap.x = -data.y * 0.000333333
+    remap.z = data.x * 0.000333333
+    remap.y = data.z * 0.000333333
     
     # the current position is last frame + old position
     current_position = add_vectors(current_position, remap)
-    rospy.loginfo(current_position)
     
     # five vectors are created based on an internal timing test
-    vec_1_sec = get_vector(current_position, list_10_sec[109])
-    vec_2_sec = get_vector(current_position, list_10_sec[194])
-    vec_5_sec = get_vector(current_position, list_10_sec[269])
-    vec_10_sec = get_vector(current_position, list_10_sec[534])
+    vec_1_sec = get_vector(current_position, list_10_sec[55])
+    vec_2_sec = get_vector(current_position, list_10_sec[97])
+    vec_5_sec = get_vector(current_position, list_10_sec[135])
+    vec_10_sec = get_vector(current_position, list_10_sec[267])
     vec_14_sec = get_vector(current_position, list_10_sec.pop())
 
     #create a clone of the current position (as it is global) to add to list

@@ -10,14 +10,16 @@ trajectories are gathered from "keyboard/trajectories"
 import rospy
 import copy
 import numpy as np
-from geometry_msgs.msg import Point, Vector3
+from geometry_msgs.msg import Point, Vector3, Pose
 from move_prediction.msg import VectorArr, PointArr, Goal
+from visualization_msgs.msg import Marker, MarkerArray
 from math import sqrt
 
-goal_list = []
+goal_list = [[Point(),0]]
 robot_positions_list = []
 current_robot_position = Point()
 pub = None
+marker_pub = rospy.Publisher('/camera/goal_marker', MarkerArray, queue_size=1)
 
 
 def cb_robot_positions(data):
@@ -38,27 +40,53 @@ def cb_goal_positions(data):
     global goal_list
     
     for goal in data.Array:
+        # rospy.loginfo(goal.z)
         add_to_list = True  # to determine whether to add this goal as new
-        for existing_goal in goal_list:  
+        for existing_goal in goal_list[1:]:  
             # check every point against existing goals
             if get_distance(goal, existing_goal[0]) < 0.05:  # it exists
                 existing_goal[1] = 0
                 add_to_list = False
                 break
             
-            if current_robot_position.y > 0. and goal.y > current_robot_position.y - 0.05:
+            if goal.y > current_robot_position.y - 0.03:
                 add_to_list = False
                 break
         
         if add_to_list:
+            rospy.loginfo("added")
             goal_list.append([goal,0])
+
+    arr = MarkerArray()
             
     # check "age" of all existing goals
-    for existing_goal in goal_list:
+    for existing_goal in goal_list[1:]:
         if existing_goal[1] >= 5:  # remove if 5 frames (~1 sec) old
             goal_list.remove(existing_goal)
         else:
             existing_goal[1] += 1  # it has existed for one more frame
+
+            marker = Marker()
+            marker.header.stamp = rospy.Time.now()
+            marker.header.frame_id = 'camera_link'
+            marker.pose = Pose()
+            marker.pose.position = existing_goal[0]
+
+            scale = Vector3()
+            scale.x = 0.02
+            scale.y = 0.02
+            scale.z = 0.02
+
+            marker.color.a = 1
+            marker.color.r = 1
+
+            marker.scale = scale
+
+            arr.markers.append(marker)
+
+    marker_pub.publish(arr)
+
+    
 
     
     
@@ -151,6 +179,10 @@ def cb_trajectories_updated(data):
     total = sum(guesses)
     
     if total == 0:
+        prediction = Goal()
+        prediction.point = Point()
+        prediction.confidence = 0.0
+        pub.publish(prediction)
         return  # should send 0 confidence here
     
     guesses /= total
@@ -167,7 +199,7 @@ def cb_trajectories_updated(data):
     prediction.point = goal
     prediction.confidence = conf
     
-    rospy.loginfo("i predict goal " + str(goal.x) + ". Confidence = " + str(conf))
+    rospy.loginfo("i predict goal " + str(goal.x) + " of " + str(len(copy_goal_list)) + ". Confidence = " + str(conf))
     
     pub.publish(prediction)
         
@@ -239,6 +271,7 @@ def cb_trajectories(data):
         
     if total == 0:
         rospy.loginfo("no guess")
+        
         return  # we should publish 0 confidence here
     best_guess[:,1] /= total
     
