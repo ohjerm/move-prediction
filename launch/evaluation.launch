@@ -1,0 +1,5 @@
+<launch>
+    <!-- camera nodes -->
+    <launch name="rs_aligned_depth.launch" pkg="realsense2_camera" type="rs_aligned_depth.launch" args="-filters pointcloud" />
+    <node name="kd_distance_filter" pkg="move_prediction" type="kd_distance_filter" />
+</launch>

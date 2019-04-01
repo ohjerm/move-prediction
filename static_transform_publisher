@@ -1,0 +1,1 @@
+rosrun tf static_transform_publisher -0.1 0 0.02 0 0 1 0 world camera_link 30

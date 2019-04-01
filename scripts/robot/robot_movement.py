@@ -16,7 +16,7 @@ import copy
 from math import sqrt
 from moveit_msgs.srv import GetPositionIK
 from moveit_msgs.srv import GetPositionIKRequest
-from geometry_msgs.msg import PoseStamped, Vector3, Point
+from geometry_msgs.msg import PoseStamped, PointStamped, Vector3, Point
 from trajectory_msgs.msg import JointTrajectory
 from trajectory_msgs.msg import JointTrajectoryPoint
 from move_prediction.msg import PointArr, Goal
@@ -36,6 +36,7 @@ req = None
 start_pub = None
 curr_pub = None
 marker_pub = None
+tf_listener = None
 predicted_goal = None
 confidence = 0.
 time_since_prediction = time.time()
@@ -56,6 +57,7 @@ def init():
     global positions_list
     global curr_pub
     global marker_pub
+    global tf_listener
     # Setup moveit stuff
     moveit_commander.roscpp_initialize(sys.argv)
     rospy.init_node('robot_control_node')
@@ -65,6 +67,8 @@ def init():
     group = moveit_commander.MoveGroupCommander(group_name)
     
     prev_state = robot.get_current_state().joint_state.position
+
+    tf_listener = tf.TransformListener()
     
     # real start position at start time
     pos = group.get_current_pose().pose.position
@@ -189,19 +193,33 @@ def publish_current_pose():
     
     
 def get_magnitude(vector):
-    return sqrt(vector.x ** 2 + vector.y ** 2 + vector.z ** 2)
+    if type(vector) is Vector3 or type(vector) is Point:
+        return sqrt(vector.x ** 2 + vector.y ** 2 + vector.z ** 2)
+    elif type(vector) is list:
+        return sqrt(vector[0] ** 2 + vector[1] ** 2 + vector[2] ** 2)
 
 
 def get_normalized_vector(vector):
-    if get_magnitude(vector) == 0. or get_magnitude(vector) == 1.:
-        return vector
-    else:
-        to_ret = Vector3()
-        mag = get_magnitude(vector)
-        to_ret.x = vector.x / mag
-        to_ret.y = vector.y / mag
-        to_ret.z = vector.z / mag
-        return to_ret
+    if type(vector) is Vector3 or type(vector) is Point:
+        if get_magnitude(vector) == 0. or get_magnitude(vector) == 1.:
+            return vector
+        else:
+            to_ret = Vector3()
+            mag = get_magnitude(vector)
+            to_ret.x = vector.x / mag
+            to_ret.y = vector.y / mag
+            to_ret.z = vector.z / mag
+            return to_ret
+    elif type(vector) is list:
+        if get_magnitude(vector) == 0:
+            return vector
+        else:
+            to_ret = Vector3()
+            mag = get_magnitude(vector)
+            to_ret.x = vector[0] / mag
+            to_ret.y = vector[1] / mag
+            to_ret.z = vector[2] / mag
+            return to_ret
     
     
 def get_vector(target, current):
@@ -215,9 +233,9 @@ def get_vector(target, current):
 def convert_to_ur_coord(vector):
     new_coords = Point()
     
-    new_coords.x = vector.z
-    new_coords.y = -vector.x
-    new_coords.z = vector.y
+    new_coords.x = -vector.z
+    new_coords.y = vector.x
+    new_coords.z = -vector.y
     
     return new_coords
     
@@ -227,6 +245,7 @@ def callback(data):
     global predicted_goal
     global time_since_prediction
     global confidence
+    global tf_listener
     
     publish_current_pose()  # we always want to publish this and update it
     
@@ -246,6 +265,7 @@ def callback(data):
         return
     
     if predicted_goal is not None:
+        """
         # rospy.loginfo(predicted_goal)
         # rospy.loginfo(group.get_current_pose().pose.position)
         optimal_goal_direction = get_vector(convert_to_ur_coord(predicted_goal),
@@ -256,17 +276,51 @@ def callback(data):
         optimal_goal_direction.y *= keyboard_magnitude
         optimal_goal_direction.z *= keyboard_magnitude
 
+        rospy.loginfo("predicted")
+        rospy.loginfo(convert_to_ur_coord(predicted_goal))
+        rospy.loginfo("current pos")
+        rospy.loginfo(group.get_current_pose())
+
         # rospy.loginfo("The goal is in x: " + str(predicted_goal.x))
         # rospy.loginfo("Current pos is x: " + str(group.get_current_pose().pose.position.y))
         # rospy.loginfo("Current fixed  x: " + str(convert_to_ur_coord(predicted_goal).x))
         
         new_pose.pose.position.x = data.x / 100. * (1 - confidence) + optimal_goal_direction.x / 100. * confidence
         new_pose.pose.position.y = data.y / 100. * (1 - confidence) + optimal_goal_direction.y / 100. * confidence
-        new_pose.pose.position.z = data.z / 100. * (1 - confidence) + optimal_goal_direction.z / 100. * confidence
+        new_pose.pose.position.z = data.z / 100. # * (1 - confidence) + optimal_goal_direction.z / 100. * confidence
 
         new_pose.pose.orientation.w = 1.0
-        
-        publish_pose(new_pose, execution_time)
+        """
+
+        # predicted goal pos in ee_link space
+        try:
+            # now = rospy.Time.now()
+            seconds = rospy.get_time()
+            seconds -= 0.1
+            now = rospy.Time.from_sec(seconds)
+            (trans, rot) = tf_listener.lookupTransform("/camera_depth_optical_frame", "/ee_link", now)
+            
+            #position is
+            point = PointStamped()
+            point.header.frame_id = '/camera_depth_optical_frame'
+            point.header.stamp = now
+            point.point = predicted_goal
+            target_pos = tf_listener.transformPoint('/ee_link', point).point
+            optimal_goal_direction = get_normalized_vector(target_pos)
+
+            keyboard_magnitude = get_magnitude(data)
+            optimal_goal_direction.x *= keyboard_magnitude
+            optimal_goal_direction.y *= keyboard_magnitude
+            optimal_goal_direction.z *= keyboard_magnitude
+
+            new_pose.pose.position.x = data.x / 100. * (1 - confidence) + optimal_goal_direction.x / 100. * confidence
+            new_pose.pose.position.y = data.y / 100. * (1 - confidence) + optimal_goal_direction.y / 100. * confidence
+            new_pose.pose.position.z = data.z / 100. # * (1 - confidence) + optimal_goal_direction.z / 100. * confidence
+
+            new_pose.pose.orientation.w = 1
+            publish_pose(new_pose, execution_time)
+        except (tf.LookupException, tf.ConnectivityException):
+            rospy.loginfo("Exception on lookupTransform")
     else:
         new_pose.pose.position.x = data.x / 100.
         new_pose.pose.position.y = data.y / 100.
@@ -281,6 +335,7 @@ def cb_goal(data):
     global confidence
     global time_since_prediction
     predicted_goal = data.point
+    predicted_goal.z -= 0.1
     confidence = data.confidence
     time_since_prediction = time.time()
     

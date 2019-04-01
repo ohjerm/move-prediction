@@ -35,6 +35,8 @@ void chatterCallback(const sensor_msgs::PointCloud2::ConstPtr &pc)
   pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>), cloud_f(new pcl::PointCloud<pcl::PointXYZ>);
   pcl::fromROSMsg(*pc, *cloud);
 
+  ROS_INFO_STREAM(cloud->header.frame_id);  
+
   pcl::VoxelGrid<pcl::PointXYZ> vg;
   pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered (new pcl::PointCloud<pcl::PointXYZ>);
 
