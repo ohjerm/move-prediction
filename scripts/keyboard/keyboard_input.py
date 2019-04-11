@@ -5,12 +5,13 @@ import rospy
 import getch
 import random
 import string
+import time
 from geometry_msgs.msg import Vector3
+from std_msgs.msg import Bool, String
 
 INTERP_FACTOR = 1. / 15.  # publish at 30, so going from 1 to 0 takes .5 sec
 
 interp_vec = Vector3()
-
 
 def clamp(val, _min, _max):
     return max(min(val, _max), _min)
@@ -21,9 +22,19 @@ def publisher(interpolate):
     global INTERP_FACTOR
     
     pub = rospy.Publisher('keyboard/input', Vector3, queue_size=1)
+    new_test_pub = rospy.Publisher('keyboard/new_test', Bool, queue_size=1)
+    arbitration_pub = rospy.Publisher('keyboard/arbitration_mode', String, queue_size=1)
+    GSR_pub = rospy.Publisher('keyboard/gsr_on', Bool, queue_size=1)
     rate = rospy.Rate(30)
     
     out = Vector3()
+    
+    e_down = False
+    current_control_mode = 'c'
+    control_modes=['c', 't', 'a', 't+', 'a+']
+    curr_int = -1
+    random.shuffle(control_modes)
+    start_time = time.time()
 
     letters = string.ascii_lowercase + string.digits
     s = ''.join(random.choice(letters) for i in range(6))
@@ -62,8 +73,26 @@ def publisher(interpolate):
             out.x = 0.
             out.y = 0.
             out.z = 0.
+            
+            if not keyboard.is_pressed(28) and time.time() - start_time > 1:
+                if e_down:
+                    curr_int += 1
+                    
+                    if curr_int >= len(control_modes):
+                        rospy.loginfo("TEST IS COMPLETE")
+                        rospy.signal_shutdown("Test is complete")
+                        return
+                    
+                    current_control_mode = control_modes[curr_int]
+                    rospy.loginfo(current_control_mode)
+                
+                e_down = False
 
             if keyboard.is_pressed(28):
+                b = Bool()
+                b.data = True
+                new_test_pub.publish(b)
+                e_down = True
                 to_print='\n'
             elif keyboard.is_pressed(1):
                 _file.close()
@@ -87,6 +116,8 @@ def publisher(interpolate):
                 to_print='7'
                 out.z = -1
                 
+            
+                
             if interpolate:
                 out.x = clamp(out.x, interp_vec.x - INTERP_FACTOR, interp_vec.x + INTERP_FACTOR)
                 out.y = clamp(out.y, interp_vec.y - INTERP_FACTOR, interp_vec.y + INTERP_FACTOR)
@@ -96,6 +127,16 @@ def publisher(interpolate):
                 interp_vec.z = out.z
             
             _file.write(to_print)
+            
+            l_control = list(current_control_mode)
+            s = String()
+            s.data = l_control[0]
+            arbitration_pub.publish(s)
+            
+            bo = Bool()
+            bo.data = len(l_control) > 1
+            GSR_pub.publish(bo)
+            
             pub.publish(out)
             rate.sleep()
             

@@ -1,0 +1,7 @@
+#!/bin/bash
+rosservice call --wait /controller_manager/switch_controller "start_controllers:
+- 'vel_based_pos_traj_controller'
+stop_controllers:
+- 'pos_based_pos_traj_controller'
+strictness: 1" &
+exec "$@"

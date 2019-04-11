@@ -6,12 +6,15 @@ also, we need to remap user input to the robot to legible positions
 """
 
 import rospy
-from geometry_msgs.msg import Vector3, Point
+import tf.transformations
+from geometry_msgs.msg import Vector3, Point, Pose
 from move_prediction.msg import VectorArr
+from visualization_msgs.msg import Marker
 
 current_position = Vector3()
 
 pub = None
+marker_pub = None
 start_pos = Point()
 
 # list_10_sec = [start_pos] * 1039
@@ -43,13 +46,34 @@ def callback(data):
     global list_10_sec
     
     # remap the data to z = forw/back, x = right/left, and y is up/down
+
+
     remap = Point()
     remap.x = -data.y * 0.000333333
     remap.z = data.x * 0.000333333
-    remap.y = data.z * 0.000333333
+    remap.y = -data.z * 0.000333333
     
     # the current position is last frame + old position
     current_position = add_vectors(current_position, remap)
+    
+    #publish marker
+    marker = Marker()
+    marker.header.stamp = rospy.Time.now()
+    marker.header.frame_id = 'camera_depth_optical_frame'
+    marker.pose = Pose()
+    marker.pose.position = current_position
+
+    scale = Vector3()
+    scale.x = 0.1
+    scale.y = 0.1
+    scale.z = 0.1
+
+    marker.color.a = 1
+    marker.color.b = 1
+
+    marker.scale = scale
+    
+    marker_pub.publish(marker)
     
     # five vectors are created based on an internal timing test
     vec_1_sec = get_vector(current_position, list_10_sec[55])
@@ -73,6 +97,7 @@ def callback(data):
 if __name__ == '__main__':
     rospy.init_node('trajectories', anonymous=False)
     pub = rospy.Publisher("keyboard/trajectories", VectorArr, queue_size=1)
+    marker_pub = rospy.Publisher("keyboard/trajectory_end", Marker, queue_size=1)
     rospy.Subscriber('keyboard/input', Vector3, callback)
     rospy.spin()
     

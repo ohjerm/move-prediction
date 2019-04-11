@@ -21,6 +21,7 @@ from trajectory_msgs.msg import JointTrajectory
 from trajectory_msgs.msg import JointTrajectoryPoint
 from move_prediction.msg import PointArr, Goal
 from visualization_msgs.msg import Marker
+from std_msgs.msg import Bool
 
 
 # Global vars
@@ -42,6 +43,8 @@ confidence = 0.
 time_since_prediction = time.time()
 
 positions_list = [Point()] * 520
+start_position_to_return = None
+new_test = False
 
 
 
@@ -58,6 +61,7 @@ def init():
     global curr_pub
     global marker_pub
     global tf_listener
+    global start_position_to_return
     # Setup moveit stuff
     moveit_commander.roscpp_initialize(sys.argv)
     rospy.init_node('robot_control_node')
@@ -67,6 +71,7 @@ def init():
     group = moveit_commander.MoveGroupCommander(group_name)
     
     prev_state = robot.get_current_state().joint_state.position
+    start_position_to_return = group.get_current_pose().pose.position
 
     tf_listener = tf.TransformListener()
     
@@ -156,12 +161,12 @@ def publish_current_pose():
     global curr_pub
     pos = group.get_current_pose().pose.position
     
-    fixed_pos = Point()
-    fixed_pos.z = -pos.x
-    fixed_pos.y = pos.z
-    fixed_pos.x = pos.y
+    # fixed_pos = Point()
+    # fixed_pos.z = -pos.x
+    # fixed_pos.y = pos.z
+    # fixed_pos.x = pos.y
     
-    positions_list.insert(0, fixed_pos)
+    positions_list.insert(0, pos)
     
     to_pub = PointArr()
     to_copy = [positions_list[55], positions_list[97], 
@@ -170,7 +175,7 @@ def publish_current_pose():
     to_pub.Array = copy.deepcopy(to_copy)
     start_pub.publish(to_pub)
 
-    curr_pub.publish(fixed_pos)
+    curr_pub.publish(pos)
 
     marker = Marker()
     marker.header.stamp = rospy.Time.now()
@@ -246,6 +251,7 @@ def callback(data):
     global time_since_prediction
     global confidence
     global tf_listener
+    global new_test
     
     publish_current_pose()  # we always want to publish this and update it
     
@@ -258,6 +264,34 @@ def callback(data):
     new_pose = PoseStamped()
     new_pose.header.stamp = rospy.Time.now()
     new_pose.header.frame_id = 'ee_link'
+
+    # if enter is pressed, reset to the start position
+    if new_test:
+        seconds = rospy.get_time()
+        seconds -= 0.1
+        now = rospy.Time.from_sec(seconds)
+        (trans, rot) = tf_listener.lookupTransform("/world", "/ee_link", now)
+
+        point = PointStamped()
+        point.header.frame_id = "/world"
+        point.header.stamp = now
+        
+        point.point = start_position_to_return
+        
+        target_pos = tf_listener.transformPoint('/ee_link', point).point
+        optimal_goal_direction = get_normalized_vector(target_pos)
+
+        new_pose.pose.position.x = optimal_goal_direction.x / 100.
+        new_pose.pose.position.y = optimal_goal_direction.y / 100.
+        new_pose.pose.position.z = optimal_goal_direction.z / 100.
+        new_pose.pose.orientation.w = 1.0
+        
+        publish_pose(new_pose, execution_time)
+
+        if get_magnitude(target_pos) < 0.05:
+            new_test = False
+
+        return
 
     
     
@@ -338,6 +372,12 @@ def cb_goal(data):
     predicted_goal.z -= 0.1
     confidence = data.confidence
     time_since_prediction = time.time()
+
+
+def cb_newtest(data):
+    global new_test
+    if data.data:
+        new_test = True
     
     
 
@@ -345,4 +385,5 @@ if __name__ == '__main__':
     init()
     rospy.Subscriber('keyboard/input', Vector3, callback)
     rospy.Subscriber('arbitration/final_goal', Goal, cb_goal)
+    rospy.Subscriber('keyboard/new_test', Bool, cb_newtest)
     rospy.spin()

@@ -10,7 +10,8 @@ trajectories are gathered from "keyboard/trajectories"
 import rospy
 import copy
 import numpy as np
-from geometry_msgs.msg import Point, Vector3, Pose
+import tf.transformations
+from geometry_msgs.msg import Point, Vector3, Pose, PointStamped
 from move_prediction.msg import VectorArr, PointArr, Goal
 from visualization_msgs.msg import Marker, MarkerArray
 from math import sqrt
@@ -20,11 +21,25 @@ robot_positions_list = []
 current_robot_position = Point()
 pub = None
 marker_pub = rospy.Publisher('/camera/goal_marker', MarkerArray, queue_size=1)
+tf_listener = None
 
+def world_to_camera(data):
+    seconds = rospy.get_time()
+    seconds -= 0.1
+    now = rospy.Time.from_sec(seconds)
+    (trans, rot) = tf_listener.lookupTransform("/world", "/camera_depth_optical_frame", now)
+
+    point = PointStamped()
+    point.header.frame_id = "/world"
+    point.header.stamp = now
+    
+    point.point = data
+    
+    return(tf_listener.transformPoint('/camera_depth_optical_frame', point).point)
 
 def cb_robot_positions(data):
     global robot_positions_list
-    robot_positions_list = data.Array
+    robot_positions_list = [world_to_camera(x) for x in data.Array]
 
 
 def get_distance(point1, point2):
@@ -38,6 +53,7 @@ def cb_goal_positions(data):
     :returns: nothing
     """
     global goal_list
+    global marker_pub
     
     for goal in data.Array:
         # rospy.loginfo(goal.z)
@@ -49,7 +65,7 @@ def cb_goal_positions(data):
                 add_to_list = False
                 break
             
-            if goal.y > current_robot_position.y - 0.03:
+            if goal.y < current_robot_position.y + 0.03:
                 add_to_list = False
                 break
         
@@ -68,14 +84,14 @@ def cb_goal_positions(data):
 
             marker = Marker()
             marker.header.stamp = rospy.Time.now()
-            marker.header.frame_id = 'camera_link'
+            marker.header.frame_id = 'camera_depth_optical_frame'
             marker.pose = Pose()
             marker.pose.position = existing_goal[0]
 
             scale = Vector3()
-            scale.x = 0.02
-            scale.y = 0.02
-            scale.z = 0.02
+            scale.x = 0.1
+            scale.y = 0.1
+            scale.z = 0.1
 
             marker.color.a = 1
             marker.color.r = 1
@@ -84,7 +100,8 @@ def cb_goal_positions(data):
 
             arr.markers.append(marker)
 
-    marker_pub.publish(arr)
+    # marker_pub.publish(arr)
+    # rospy.logwarn(len(arr.markers))
 
     
 
@@ -134,6 +151,31 @@ def no_length(vector):
     return vector.x == 0 and vector.y == 0 and vector.z == 0
 
 
+def show_positions(data):
+    global marker_pub
+    arr = MarkerArray()
+    for point in data:
+        marker = Marker()
+        marker.header.stamp = rospy.Time.now()
+        marker.header.frame_id = 'camera_depth_optical_frame'
+        marker.pose = Pose()
+        marker.pose.position = point
+
+        scale = Vector3()
+        scale.x = 0.1
+        scale.y = 0.1
+        scale.z = 0.1
+
+        marker.color.a = 1
+        marker.color.r = 1
+
+        marker.scale = scale
+
+        arr.markers.append(marker)
+    
+    marker_pub.publish(arr)
+
+
 #this is the updated version of the method, chosen based on internal test
 def cb_trajectories_updated(data):
     global goal_list
@@ -143,6 +185,8 @@ def cb_trajectories_updated(data):
     #kind of slow (deepcopying) but likely necessary
     copy_goal_list = copy.deepcopy(goal_list)  # ensure no race conditions
     copy_posi_list = copy.deepcopy(robot_positions_list)
+    
+    show_positions(copy_posi_list)
     
     trajectory_probabilities = np.zeros((len(data.Array), len(copy_goal_list)))
     
@@ -287,13 +331,15 @@ def cb_trajectories(data):
     
 def cb_current_pos_update(data):
     global current_robot_position
-    current_robot_position = data
+    current_robot_position = world_to_camera(data)
 
 
 
 def init():
     global pub
+    global tf_listener
     rospy.init_node('intent_prediction_node', anonymous=False)
+    tf_listener = tf.TransformListener()
     pub = rospy.Publisher("arbitration/prediction", Goal, queue_size=1)
     rospy.Subscriber('keyboard/robot_start_position', 
                      PointArr, cb_robot_positions)
