@@ -4,37 +4,23 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import datetime as dt
 import rospy
-from std_msgs.msg import String
+from std_msgs.msg import String, Float64
 
 def wait_for_ack():
    ddata = ""
    ack = struct.pack('B', 0xff)
-   while ddata != ack:Goodbye
+   while ddata != ack:
       ddata = ser.read(1)
       print "0x%02x" % ord(ddata[0])
      
 def talker():
-    pub = rospy.Publisher('chatter', String, queue_size=10)
-    rospy.init_node('talker', anonymous=True)
-    rate = rospy.Rate(10) # 10hz
+    rospy.init_node('GSR', anonymous=False)
+    pub = rospy.Publisher('GSR', Float64, queue_size=1)
+    rate = rospy.Rate(30)
     while not rospy.is_shutdown():
-        GSR_str = str(GSR_ohm)
-        rospy.loginfo(GSR_  str)
-        pub.publish(GSR_str)
+        pub.publish(Conf)
         rate.sleep()
         break
-
-def animate(i,xs,ys):
-   xs.append(dt.datetime.now().strftime('%H:%M:%S.%f'))
-   ys.append(GSR_ohm)
-          
-   ax.clear()
-   ax.plot(xs,ys)
-          
-   plt.xticks(rotation=45, ha='right')
-   plt.subplots_adjust(bottom=0.30)
-   plt.title('GSR Data')
-   plt.ylabel('GSR DATA2')
 
 if len(sys.argv) < 2:
    print "no device specified"
@@ -63,7 +49,7 @@ else:
    '''
     sampling_freq = 32768 / clock_wait = X Hz
    '''
-   sampling_freq = 50
+   sampling_freq = 30
    clock_wait = (2 << 14) / sampling_freq
 
    ser.write(struct.pack('<BH', 0x05, clock_wait))
@@ -79,10 +65,25 @@ else:
    numbytes = 0
    framesize = 8 # 1byte packet type + 3byte timestamp + 2 byte GSR + 2 byte PPG(Int A13)
    
-   fig = plt.figure()
-   ax = fig.add_subplot(1,1,1)  
    xs = []
+   x = 0
    ys = []
+   y = []
+   y_raw = []
+   movingAverage = [None] * 180
+   Difference = 0
+   DifferenceList = []
+   movingAverage2 = [None] * 90
+   Difference2 = 0
+   DifferenceList2 = []
+   DifferencePercent = 0
+   DifferencePercentList = []
+   DifferencePercent2 = 0
+   DifferencePercentList2 = []
+   Conf = 0
+   ConfList = []
+   Conf = 0
+   ConfList2 = []
    
    print "Packet Type\tTimestamp\tGSR\tGSR_raw"
    try:
@@ -117,8 +118,35 @@ else:
          # convert GSR to kohm value
          gsr_to_volts = (GSR_raw & 0x3fff) * (3.0/4095.0)
          GSR_ohm = Rf/( (gsr_to_volts /0.5) - 1.0)
+         x += 1
+         xs.append(x)
 
          timestamp = timestamp0 + timestamp1*256 + timestamp2*65536
+
+         number = x % 180
+         movingAverage[number] = GSR_ohm
+         movingAverageSum = (sum(filter(None, movingAverage)) / 180)
+
+         Difference = (GSR_ohm - movingAverageSum)
+         DifferenceList.append(Difference)
+
+         number2 = x % 90
+         movingAverage2[number2] = GSR_ohm
+         movingAverageSum2 = (sum(filter(None, movingAverage2)) / 90)
+
+         Difference2 = (GSR_ohm - movingAverageSum2)
+         DifferenceList2.append(Difference2)
+ 
+         DifferencePercent = (1 - (GSR_ohm / movingAverageSum)) * 100
+         DifferencePercentList.append(DifferencePercent)
+
+         DifferencePercent2 = (1 - (GSR_ohm / movingAverageSum2)) * 100
+         DifferencePercentList2.append(DifferencePercent2)
+
+         Conf = -(max(0,min(1,(1-(GSR_ohm/movingAverageSum))*(100/6)))**2)+1
+         ConfList.append(Conf)
+         Conf2 = -(max(0,min(1,(1-(GSR_ohm/movingAverageSum2))*(100/6)))**2)+1
+         ConfList2.append(Conf2)
       
          print "0x%02x\t\t%5d,\t%4d,\t%4d" % (packettype[0], timestamp, GSR_ohm, GSR_raw)
          
