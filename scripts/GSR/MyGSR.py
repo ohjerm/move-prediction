@@ -4,7 +4,17 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import datetime as dt
 import rospy
-from std_msgs.msg import String, Float64
+import time
+from std_msgs.msg import String, Float64, Float32, Bool
+from move_prediction.msg import NewLog
+import os
+
+cwd = os.getcwd()
+
+is_on=False
+log_name = ""
+new_line = False
+new_line_time = time.time()
 
 def wait_for_ack():
    ddata = ""
@@ -13,14 +23,46 @@ def wait_for_ack():
       ddata = ser.read(1)
       print "0x%02x" % ord(ddata[0])
      
-def talker():
+def talker(Conf, GSR_ohm):
+    global is_on
+    global new_line_time
+    global new_line
+    global log_name
     rospy.init_node('GSR', anonymous=False)
     pub = rospy.Publisher('GSR', Float64, queue_size=1)
     rate = rospy.Rate(30)
     while not rospy.is_shutdown():
-        pub.publish(Conf)
+        if time.time() - 1 > new_line_time and log_name != "":
+            new_line = False
+            with open('/home/oliver/catkin_ws/src/move-prediction/logs/' + str(log_name) + '_gsr.txt', 'a+') as _file:
+                _file.write(',' + str(GSR_ohm))
+        
+        if is_on:
+            pub.publish(Conf)
+            
         rate.sleep()
         break
+
+def cb_switch(data):
+   global is_on
+   global log_name
+
+   log_name=data.name
+   is_on=data.b
+   
+def cb_new_line(data):
+    global new_line
+    global new_line_time
+    if data.data and not new_line:
+        new_line = True
+        new_line_time = time.time()
+        with open('/home/oliver/catkin_ws/src/move-prediction/logs/' + str(log_name) + '_gsr.txt', 'a+') as _file:
+            _file.write('\n')
+        
+   
+   
+   
+   
 
 if len(sys.argv) < 2:
    print "no device specified"
@@ -64,6 +106,9 @@ else:
    ddata = ""
    numbytes = 0
    framesize = 8 # 1byte packet type + 3byte timestamp + 2 byte GSR + 2 byte PPG(Int A13)
+
+   rospy.Subscriber('keyboard/gsr_on', NewLog, cb_switch)
+   rospy.Subscriber('keyboard/new_test', Bool, cb_new_line)
    
    xs = []
    x = 0
@@ -152,7 +197,7 @@ else:
          
          if __name__ == '__main__':
             try:
-                talker()
+                talker(Conf, GSR_ohm)
             except rospy.ROSInterruptException:
                 pass
 

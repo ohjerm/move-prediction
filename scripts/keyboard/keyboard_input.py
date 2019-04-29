@@ -8,6 +8,8 @@ import string
 import time
 from geometry_msgs.msg import Vector3
 from std_msgs.msg import Bool, String
+from move_prediction.msg import NewLog
+
 
 INTERP_FACTOR = 1. / 15.  # publish at 30, so going from 1 to 0 takes .5 sec
 
@@ -24,7 +26,7 @@ def publisher(interpolate):
     pub = rospy.Publisher('keyboard/input', Vector3, queue_size=1)
     new_test_pub = rospy.Publisher('keyboard/new_test', Bool, queue_size=1)
     arbitration_pub = rospy.Publisher('keyboard/arbitration_mode', String, queue_size=1)
-    GSR_pub = rospy.Publisher('keyboard/gsr_on', Bool, queue_size=1)
+    GSR_pub = rospy.Publisher('keyboard/gsr_on', NewLog, queue_size=1)
     rate = rospy.Rate(30)
     
     out = Vector3()
@@ -40,7 +42,7 @@ def publisher(interpolate):
     s = ''.join(random.choice(letters) for i in range(6))
 
     rospy.loginfo(s)
-    with open('logs/' + s + '.txt', 'w') as _file:
+    with open('logs/' + s + '.txt', 'w+') as _file:
         while not rospy.is_shutdown():
             if keyboard.is_pressed('esc'):
                 rospy.signal_shutdown("Hooked keyboard is no longer needed")
@@ -78,11 +80,19 @@ def publisher(interpolate):
                 if e_down:
                     curr_int += 1
                     
-                    if curr_int >= len(control_modes):
+                    if curr_int >= len(control_modes): #control test
                         rospy.loginfo("TEST IS COMPLETE")
+                        
+                        # signal gsr log shutdown
+                        bo = NewLog()
+                        bo.b = False
+                        bo.name = ""
+                        GSR_pub.publish(bo)
+                        
                         rospy.signal_shutdown("Test is complete")
                         return
                     
+                    # current_control_mode = 'c'
                     current_control_mode = control_modes[curr_int]
                     rospy.loginfo(current_control_mode)
                 
@@ -129,12 +139,13 @@ def publisher(interpolate):
             _file.write(to_print)
             
             l_control = list(current_control_mode)
-            s = String()
-            s.data = l_control[0]
-            arbitration_pub.publish(s)
+            st = String()
+            st.data = l_control[0]
+            arbitration_pub.publish(st)
             
-            bo = Bool()
-            bo.data = len(l_control) > 1
+            bo = NewLog()
+            bo.b = len(l_control) > 1
+            bo.name = str(s)
             GSR_pub.publish(bo)
             
             pub.publish(out)

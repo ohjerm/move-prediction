@@ -11,9 +11,11 @@ import rospy
 import copy
 import numpy as np
 import tf.transformations
+import time
 from geometry_msgs.msg import Point, Vector3, Pose, PointStamped
 from move_prediction.msg import VectorArr, PointArr, Goal
 from visualization_msgs.msg import Marker, MarkerArray
+from std_msgs.msg import Float64
 from math import sqrt
 
 goal_list = [[Point(),0]]
@@ -22,6 +24,9 @@ current_robot_position = Point()
 pub = None
 marker_pub = rospy.Publisher('/camera/goal_marker', MarkerArray, queue_size=1)
 tf_listener = None
+
+curr_gsr = 0.
+time_last_gsr = time.time()
 
 def world_to_camera(data):
     seconds = rospy.get_time()
@@ -181,6 +186,8 @@ def cb_trajectories_updated(data):
     global goal_list
     global robot_positions_list
     global pub
+    global time_last_gsr
+    global curr_gsr
     
     #kind of slow (deepcopying) but likely necessary
     copy_goal_list = copy.deepcopy(goal_list)  # ensure no race conditions
@@ -238,6 +245,9 @@ def cb_trajectories_updated(data):
         conf = 1
     else:
         conf = prob - np.partition(guesses, -2)[-2]
+        
+    if time_last_gsr - time.time() < 1:
+        conf *= curr_gsr
     
     prediction = Goal()
     prediction.point = goal
@@ -334,6 +344,12 @@ def cb_current_pos_update(data):
     current_robot_position = world_to_camera(data)
 
 
+def cb_gsr(data):
+    global time_last_gsr
+    global curr_gsr
+    time_last_gsr = time.time()
+    curr_gsr=data.data
+
 
 def init():
     global pub
@@ -347,6 +363,7 @@ def init():
                      PointArr, cb_goal_positions)
     rospy.Subscriber('keyboard/trajectories', VectorArr, cb_trajectories_updated)
     rospy.Subscriber('/robot/current_position', Point, cb_current_pos_update)
+    rospy.Subscriber('GSR', Float64, cb_gsr)
     rospy.spin()
 
 

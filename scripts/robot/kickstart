@@ -1,4 +1,5 @@
 #!/bin/bash
+sleep 4.0;
 rosservice call --wait /controller_manager/switch_controller "start_controllers:
 - 'vel_based_pos_traj_controller'
 stop_controllers:

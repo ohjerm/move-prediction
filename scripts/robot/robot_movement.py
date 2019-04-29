@@ -288,7 +288,7 @@ def callback(data):
         
         publish_pose(new_pose, execution_time)
 
-        if get_magnitude(target_pos) < 0.05:
+        if get_magnitude(target_pos) < 0.02:
             new_test = False
 
         return

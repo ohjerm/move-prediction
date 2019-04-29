@@ -35,8 +35,6 @@ def cb_prediction(data):
     aggressive_goal.point = data.point
     aggressive_goal.confidence = flatten(data.confidence, 0.5, 1.)
     
-    rospy.loginfo(mode)
-    
     if mode == 'timid' or mode == 't':
         pub.publish(timid_goal)
     elif mode == 'aggressive' or mode == 'a':

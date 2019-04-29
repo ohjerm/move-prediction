@@ -1,4 +1,4 @@
 #!/bin/bash
 
-sleep 4.0;
+sleep 6.0;
 exec "$@"
