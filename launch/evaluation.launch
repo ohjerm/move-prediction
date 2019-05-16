@@ -1,0 +1,33 @@
+<!-- this script will launch everything but keyboard -->
+
+<launch>
+    <include file="$(find ur_modern_driver)/launch/ur3_ros_control.launch">
+        <arg name="robot_ip" value="169.254.178.76" />
+    </include>
+
+    <include file="$(find realsense2_camera)/launch/rs_aligned_depth.launch">
+        <arg name="filters" value="pointcloud"/>
+    </include>
+    
+    <node name="distance_filter" pkg="move_prediction" type="kd_distance_filter" />
+    <node name="clustering" pkg="move_prediction" type="clustering" />
+    <node name="rviz" pkg="rviz" type="rviz" />
+    
+    <node name="transform_publisher" pkg="tf" type="static_transform_publisher" args="-0.1 0 0.02 0 0 1 0 world camera_link 30" />
+    
+    <node name="trajectories" pkg="move_prediction" type="trajectories.py" />
+    <node name="intent_prediction" pkg="move_prediction" type="intent_prediction.py" />
+    
+    <node name="gsr" pkg="move_prediction" type="MyGSR.py" args="/dev/rfcomm0" />
+    <node name="arbitration" pkg="move_prediction" type="arbitration.py" />
+    
+    <!-- a dirty hack -->
+    <node name="service" pkg="move_prediction" type="rosservice.py" launch-prefix="$(find move_prediction)/scripts/robot/kickstart" />
+    
+    <include file="$(find ur3_moveit_config)/launch/ur3_moveit_planning_execution.launch">
+        <arg name="limited" value="true"/>
+    </include>
+    
+    <node name="robot_movement" pkg="move_prediction" type="robot_movement.py" launch-prefix="$(find move_prediction)/scripts/robot/wait" />
+
+</launch>

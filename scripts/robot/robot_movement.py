@@ -113,10 +113,14 @@ def publish_pose(pose, speed):
     global prev_state
     global req
     global pub
+
+    # rospy.logerr("Before request")
     
     # Send request for new pose to IK (inverse kinematics) service
     req.ik_request.pose_stamped = pose
     resp = ik_srv.call(req)
+
+    # rospy.logerr("Before check error")
     
     # Check if valid robot configuration can be found
     if(resp.error_code.val == -31):
@@ -130,6 +134,8 @@ def publish_pose(pose, speed):
     if(max_diff > 1.0):
         print('Singularity detected. Skipping!')
         return
+
+    
     
     # Publish new pose as JointTrajectory 
     traj = JointTrajectory()
@@ -141,6 +147,8 @@ def publish_pose(pose, speed):
     point.time_from_start = rospy.Duration(speed)
     traj.points.append(point)
     pub.publish(traj)
+
+    
     
     # Update previous state of robot to current state
     prev_state = resp.solution.joint_state.position
@@ -352,9 +360,11 @@ def callback(data):
             new_pose.pose.position.z = data.z / 100. # * (1 - confidence) + optimal_goal_direction.z / 100. * confidence
 
             new_pose.pose.orientation.w = 1
+            # rospy.logerr("Before publish")
             publish_pose(new_pose, execution_time)
+            
         except (tf.LookupException, tf.ConnectivityException):
-            rospy.loginfo("Exception on lookupTransform")
+            rospy.logwarn("Exception on lookupTransform")
     else:
         new_pose.pose.position.x = data.x / 100.
         new_pose.pose.position.y = data.y / 100.

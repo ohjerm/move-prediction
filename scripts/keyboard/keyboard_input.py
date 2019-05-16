@@ -119,12 +119,14 @@ def publisher(interpolate):
             elif keyboard.is_pressed(77):
                 to_print='6'
                 out.y = -1
+            """
             elif keyboard.is_pressed(73):
                 to_print='9'
                 out.z = 1
             elif keyboard.is_pressed(71):
                 to_print='7'
                 out.z = -1
+            """
                 
             
                 

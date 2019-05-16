@@ -246,8 +246,10 @@ def cb_trajectories_updated(data):
     else:
         conf = prob - np.partition(guesses, -2)[-2]
         
-    if time_last_gsr - time.time() < 1:
+    if time.time() - time_last_gsr < 1:
+        # rospy.logerr("conf: " + str(conf))
         conf *= curr_gsr
+        # rospy.logerr("new conf:" + str(conf))
     
     prediction = Goal()
     prediction.point = goal

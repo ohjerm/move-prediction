@@ -55,6 +55,7 @@ add_message_files(
   PointArr.msg
   VectorArr.msg
   Goal.msg
+  NewLog.msg
 )
 
 ## Generate services in the 'srv' folder

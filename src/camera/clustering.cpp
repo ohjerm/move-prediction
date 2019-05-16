@@ -11,6 +11,7 @@
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/features/normal_3d.h>
 #include <pcl/kdtree/kdtree.h>
+#include <pcl/filters/statistical_outlier_removal.h>
 #include <pcl/sample_consensus/method_types.h>
 #include <pcl/sample_consensus/model_types.h>
 #include <pcl/segmentation/sac_segmentation.h>
@@ -35,7 +36,9 @@ void chatterCallback(const sensor_msgs::PointCloud2::ConstPtr &pc)
   pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>), cloud_f(new pcl::PointCloud<pcl::PointXYZ>);
   pcl::fromROSMsg(*pc, *cloud);
 
-  ROS_INFO_STREAM(cloud->header.frame_id);  
+  //ROS_INFO_STREAM(cloud->header.frame_id);  
+  
+  pcl::StatisticalOutlierRemoval<pcl::PointXYZ> sor;
 
   pcl::VoxelGrid<pcl::PointXYZ> vg;
   pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered (new pcl::PointCloud<pcl::PointXYZ>);
@@ -43,6 +46,11 @@ void chatterCallback(const sensor_msgs::PointCloud2::ConstPtr &pc)
   vg.setInputCloud(cloud);
   vg.setLeafSize(0.01f, 0.01f, 0.01f);
   vg.filter(*cloud_filtered);
+
+  sor.setInputCloud (cloud_filtered);
+  sor.setMeanK (6);
+  sor.setStddevMulThresh (2.0);
+  sor.filter (*cloud_filtered);
 
   pcl::SACSegmentation<pcl::PointXYZ> seg;
   pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
@@ -54,10 +62,10 @@ void chatterCallback(const sensor_msgs::PointCloud2::ConstPtr &pc)
   seg.setModelType(pcl::SACMODEL_PLANE);
   seg.setMethodType(pcl::SAC_RANSAC);
   seg.setMaxIterations(10000);
-  seg.setDistanceThreshold(0.01);
+  seg.setDistanceThreshold(0.02);
 
   int i=0, num_points = (int) cloud_filtered->points.size();
-  while(cloud_filtered->points.size() > 0.6 * num_points) 
+  while(cloud_filtered->points.size() > 0.3 * num_points) 
   {
     seg.setInputCloud(cloud_filtered);
     seg.segment(*inliers, *coefficients);
@@ -137,8 +145,6 @@ void chatterCallback(const sensor_msgs::PointCloud2::ConstPtr &pc)
     pa.Array.push_back(points_vector[i]);
   }
   pub_points.publish(pa);
-
-  ROS_INFO("%i", (int)pa.Array.size());
 }
 
 int main(int argc, char **argv)
